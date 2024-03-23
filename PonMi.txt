@@ -27,3 +27,7 @@ static const char* PonMi; // title
 1457
    config.Set("Title", "Supermodel - PonMi");
 
+
+\Config\Supermodel.ini
+43
+Title = "Supermodel"
