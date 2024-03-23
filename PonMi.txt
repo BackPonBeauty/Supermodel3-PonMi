@@ -1,10 +1,11 @@
 You can assign keys for "Pause", "Save State", "Load State", "Change Save Slot".
-You can freely set the title. Please set it in the config file.
+You can freely set the title. Please set it in the Supermodel.ini file.
 ex)
 Title = "Supermodel"
 
 For what···
 This is to import with OBS when multiple running.
+<<<<<<< HEAD
 
 What was changed was
 \Src\Inputs\inputs.cpp
@@ -25,3 +26,5 @@ static const char* PonMi; // title
    
 1457
    config.Set("Title", "Supermodel - PonMi");
+=======
+>>>>>>> 87f1826b3340668f193a34945cac38518b6fb561
