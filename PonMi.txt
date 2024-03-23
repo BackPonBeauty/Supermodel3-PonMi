@@ -5,3 +5,23 @@ Title = "Supermodel"
 
 For what···
 This is to import with OBS when multiple running.
+
+What was changed was
+\Src\Inputs\inputs.cpp
+Around line 51
+uiPause = AddSwitchInput("UIPause", "Pause", Game::INPUT_COMMON, "NONE");
+uiFullScreen = AddSwitchInput("UIFullScreen", "Toggle Fullscreen", Game::INPUT_UI, "KEY_ALT+KEY_RETURN");
+uiSaveState = AddSwitchInput("UISaveState", "Save State", Game::INPUT_COMMON, "NONE");
+uiChangeSlot = AddSwitchInput("UIChangeSlot", "Change Save Slot", Game::INPUT_COMMON, "NONE");
+uiLoadState = AddSwitchInput("UILoadState", "Load State", Game::INPUT_COMMON, "NONE");
+
+\Src\OSD\SDL\Main.cpp
+Add line 126
+static const char* PonMi; // title
+
+926
+   PonMi = s_runtime_config["Title"].ValueAs<std::string>().c_str();
+   sprintf(baseTitleStr,"%s - %s",PonMi , game.title.c_str());
+   
+1457
+   config.Set("Title", "Supermodel - PonMi");
