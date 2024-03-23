@@ -1,0 +1,7 @@
+You can assign keys for "Pause", "Save State", "Load State", "Change Save Slot".
+You can freely set the title. Please set it in the config file.
+ex)
+Title = "Supermodel"
+
+For what···
+This is to import with OBS when multiple running.
