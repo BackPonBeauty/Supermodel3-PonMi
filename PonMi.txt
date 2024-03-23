@@ -5,9 +5,10 @@ Title = "Supermodel"
 
 For what···
 This is to import with OBS when multiple running.
-<<<<<<< HEAD
+
 
 What was changed was
+
 \Src\Inputs\inputs.cpp
 Around line 51
 uiPause = AddSwitchInput("UIPause", "Pause", Game::INPUT_COMMON, "NONE");
