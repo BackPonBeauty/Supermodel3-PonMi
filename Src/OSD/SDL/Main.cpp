@@ -113,7 +113,7 @@ static Util::Config::Node s_runtime_config("Global");
 ******************************************************************************/
 
 SDL_Window *s_window = nullptr;
-
+SDL_Renderer *renderer;
 /*
  * Position and size of rectangular region within OpenGL display to render to.
  * Unlike the config tree, these end up containing the actual resolution (and
@@ -123,7 +123,7 @@ SDL_Window *s_window = nullptr;
 static unsigned  xOffset, yOffset;      // offset of renderer output within OpenGL viewport
 static unsigned  xRes, yRes;            // renderer output resolution (can be smaller than GL viewport)
 static unsigned  totalXRes, totalYRes;  // total resolution (the whole GL viewport)
-static const char*  PonMi;                     // title
+static const char*  title;              // title
 static int aaValue = 1;                 // default is 1 which is no aa
 
 /*
@@ -907,6 +907,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   bool        quit = false;
   bool        paused = false;
   bool        dumpTimings = false;
+  bool        drawScanline = false;
 
   // Initialize and load ROMs
   if (OKAY != Model3->Init())
@@ -923,8 +924,8 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   char titleStr[128];
   totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
   totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
-  PonMi = s_runtime_config["Title"].ValueAs<std::string>().c_str();
-  sprintf(baseTitleStr,"%s - %s",PonMi ,  game.title.c_str());
+  title = s_runtime_config["Title"].ValueAs<std::string>().c_str();
+  sprintf(baseTitleStr,"%s - %s",title ,  game.title.c_str());
   SDL_SetWindowTitle(s_window, baseTitleStr);
   SDL_SetWindowSize(s_window, totalXRes, totalYRes);
 
@@ -1010,6 +1011,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   quit = false;
   paused = false;
   dumpTimings = false;
+  drawScanline = false;
 #ifdef DEBUG
   if (dynamic_cast<CModel3GraphicsState *>(Model3))
   {
@@ -2031,6 +2033,14 @@ int main(int argc, char **argv)
   Model3 = new CModel3(s_runtime_config);
 #endif
 
+  /*renderer = SDL_CreateRenderer(s_window, -1, SDL_RENDERER_ACCELERATED);
+  if( renderer == NULL ) {
+      printf("Can not create renderer\n");
+      exit(1);
+  }
+  SDL_SetRenderDrawColor(renderer, 0xff, 0, 0, SDL_ALPHA_OPAQUE);
+  SDL_RenderDrawLine(renderer, 0, 0, 319, 239);
+  SDL_RenderPresent(renderer);*/
   // Create input system
   if (selectedInputSystem == "sdl")
     InputSystem = new CSDLInputSystem(s_runtime_config);
