@@ -1015,9 +1015,9 @@ UINT8 CModel3::Read8(UINT32 addr)
     break;
 
   // 53C810 SCSI
-  case 0xC0:  // only on Step 1.0
+  case 0xC0:  // only on Step 1.x
 #ifndef NET_BOARD
-    if (m_game.stepping != "1.0")
+    if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0)
     {
       //printf("Model3 : Read8 %x\n", addr);
       break;
@@ -1049,7 +1049,7 @@ UINT8 CModel3::Read8(UINT32 addr)
       break;
     }
   }
-  else if (m_game.stepping != "1.0") break;
+  else if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0) break;
 #endif
   case 0xF9:
   case 0xC1:
@@ -1309,9 +1309,9 @@ UINT32 CModel3::Read32(UINT32 addr)
     break;
 
   // 53C810 SCSI
-  case 0xC0:  // only on Step 1.0
+  case 0xC0:  // only on Step 1.x
 #ifndef NET_BOARD
-    if (m_game.stepping != "1.0") // check for Step 1.0
+    if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0) // check for Step 1.x
       break;
 #endif
 #ifdef NET_BOARD
@@ -1346,7 +1346,7 @@ UINT32 CModel3::Read32(UINT32 addr)
       }
 
     }
-    else if (m_game.stepping != "1.0") break;
+    else if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0) break;
 #endif
   case 0xF9:
   case 0xC1:
@@ -1418,10 +1418,17 @@ void CModel3::Write8(UINT32 addr, UINT8 data)
     // Sound Board
     case 0x08:
       //printf("PPC: %08X=%02X * (PC=%08X, LR=%08X)\n", addr, data, ppc_get_pc(), ppc_get_lr());
-      if ((addr&0xF) == 0)      // MIDI data port
+      if ((addr & 0xF) == 0)      // MIDI data port
+      {
         SoundBoard.WriteMIDIPort(data);
-      else if ((addr&0xF) == 4) // MIDI control port
+        IRQ.Deassert(0x40);
+      }
+      else if ((addr & 0xF) == 4) // MIDI control port
+      {
         midiCtrlPort = data;
+        if ((data & 0x20) == 0)
+          IRQ.Deassert(0x40);
+      }
       break;
 
     // Backup RAM
@@ -1466,9 +1473,9 @@ void CModel3::Write8(UINT32 addr, UINT8 data)
     break;
 
   // 53C810 SCSI
-  case 0xC0:  // only on Step 1.0
+  case 0xC0:  // only on Step 1.x
 #ifndef NET_BOARD
-    if (m_game.stepping != "1.0")
+    if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0)
       goto Unknown8;
 #endif
 #ifdef NET_BOARD
@@ -1503,7 +1510,7 @@ void CModel3::Write8(UINT32 addr, UINT8 data)
 
       break;
     }
-    else if (m_game.stepping != "1.0") break;
+    else if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0) break;
 #endif
   case 0xF9:
   case 0xC1:
@@ -1788,9 +1795,9 @@ void CModel3::Write32(UINT32 addr, UINT32 data)
     break;
 
   // 53C810 SCSI
-  case 0xC0:  // step 1.0 only
+  case 0xC0:  // step 1.x only
 #ifndef NET_BOARD
-    if (m_game.stepping != "1.0")
+    if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0)
       goto Unknown32;
 #endif
 #ifdef NET_BOARD
@@ -1825,7 +1832,7 @@ void CModel3::Write32(UINT32 addr, UINT32 data)
 
       break;
     }
-    else if (m_game.stepping != "1.0") break;
+    else if (m_stepping > 0x15 || SCSI.GetBaseAddress() != 0xC0) break;
 #endif
   case 0xF9:
   case 0xC1:
@@ -2133,9 +2140,7 @@ void CModel3::RunMainBoardFrame(void)
 
 			// Process MIDI interrupt
 			IRQ.Assert(0x40);
-			ppc_execute(200); // give PowerPC time to acknowledge IR
-			IRQ.Deassert(0x40);
-			ppc_execute(200); // acknowledge that IRQ was deasserted (TODO: is this really needed?)
+			ppc_execute(400); // give PowerPC time to acknowledge IR
 			dispCycles -= 400;
 
 			++irqCount;
@@ -2979,8 +2984,8 @@ bool CModel3::LoadGame(const Game &game, const ROMSet &rom_set)
   ppc_set_fetch(PPCFetchRegions);
 
   // Initialize Real3D
-  int stepping = ((game.stepping[0] - '0') << 4) | (game.stepping[2] - '0');
-  GPU.SetStepping(stepping);
+  m_stepping = ((game.stepping[0] - '0') << 4) | (game.stepping[2] - '0');
+  GPU.SetStepping(m_stepping);
 
   // MPEG board (if present)
   if (rom_set.get_rom("mpeg_program").size)
