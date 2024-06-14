@@ -48,11 +48,11 @@ CInputs::CInputs(CInputSystem *system)
 	// UI Controls  
 	uiExit             = AddSwitchInput("UIExit",             "Exit UI",               Game::INPUT_UI, "KEY_ESCAPE");
 	uiReset            = AddSwitchInput("UIReset",            "Reset",                 Game::INPUT_UI, "KEY_ALT+KEY_R");
-	uiPause            = AddSwitchInput("UIPause",            "Pause",                 Game::INPUT_COMMON, "NONE");
+	uiPause            = AddSwitchInput("UIPause",            "Pause",                 Game::INPUT_COMMON, "KEY_ALT+KEY_P");
 	uiFullScreen       = AddSwitchInput("UIFullScreen",       "Toggle Fullscreen",     Game::INPUT_UI, "KEY_ALT+KEY_RETURN");
-	uiSaveState        = AddSwitchInput("UISaveState",        "Save State",            Game::INPUT_COMMON, "NONE");
-	uiChangeSlot       = AddSwitchInput("UIChangeSlot",       "Change Save Slot",      Game::INPUT_COMMON, "NONE");
-	uiLoadState        = AddSwitchInput("UILoadState",        "Load State",            Game::INPUT_COMMON, "NONE");
+	uiSaveState        = AddSwitchInput("UISaveState",        "Save State",            Game::INPUT_COMMON, "KEY_F5");
+	uiChangeSlot       = AddSwitchInput("UIChangeSlot",       "Change Save Slot",      Game::INPUT_COMMON, "KEY_F6");
+	uiLoadState        = AddSwitchInput("UILoadState",        "Load State",            Game::INPUT_COMMON, "KEY_F7");
 	uiMusicVolUp	     = AddSwitchInput("UIMusicVolUp",		    "Increase Music Volume", Game::INPUT_UI, "KEY_F10");
 	uiMusicVolDown	   = AddSwitchInput("UIMusicVolDown",	    "Decrease Music Volume", Game::INPUT_UI, "KEY_F9");
 	uiSoundVolUp	     = AddSwitchInput("UISoundVolUp",		    "Increase Sound Volume", Game::INPUT_UI, "KEY_F12");
