@@ -107,15 +107,19 @@ If you try and run a macOS binary that was downloaded from the internet and/or b
 
 * Click "Open" when the following dialogue box appears : "macOS cannot verify the developer of “supermodel-git-xxxx”. Are you sure you want to open it?"
 
+* Close the terminal window that opens (after clicking open)
+
+Details: https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac
+
 ### PonMi
 
 You can assign keys for "Pause", "Save State", "Load State", "Change Save Slot".
+
 ![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/129fbecd-1610-4f01-a115-437aaf04e108)
 
 You can freely set the title.
 Please set it in Supermodel.ini.
+
 ![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/d9f6fd19-e293-4201-b951-9c8577e94924)
 
-* Close the terminal window that opens (after clicking open)
 
-Details: https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac
