@@ -132,6 +132,7 @@ static unsigned  xRes, yRes;            // renderer output resolution (can be sm
 static unsigned  totalXRes, totalYRes;  // total resolution (the whole GL viewport)
 static int aaValue = 1;                 // default is 1 which is no aa
 static const char*  title;              // title
+static CRTcolor CRTcolors = CRTcolor::None; // default to no gamma/color adaption being done
 
 /*
  * Crosshair stuff
@@ -188,7 +189,7 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   *xResPtr = (unsigned) xRes;
   *yResPtr = (unsigned) yRes;
 
-  UINT32 correction = (UINT32)(((yRes / 384.f) * 2.f) + 0.5f);
+  UINT32 correction = (UINT32)(((*yResPtr / 384.) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
 
   glEnable(GL_SCISSOR_TEST);
 
@@ -869,7 +870,7 @@ static uint64_t GetDesiredRefreshRateMilliHz()
   // The refresh rate is expressed as mHz (millihertz -- Hz * 1000) in order to
   // be expressable as an integer. E.g.: 57.524 Hz -> 57524 mHz.
   float refreshRateHz = std::abs(s_runtime_config["RefreshRate"].ValueAs<float>());
-  uint64_t refreshRateMilliHz = uint64_t(1000.0f * refreshRateHz);
+  uint64_t refreshRateMilliHz = uint64_t(1000.0 * refreshRateHz);
   return refreshRateMilliHz;
 }
 
@@ -946,8 +947,8 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   SDL_SetWindowTitle(s_window, baseTitleStr);
   SDL_SetWindowSize(s_window, totalXRes, totalYRes);
 
-  int xpos = s_runtime_config["WindowXPosition"].Exists() ? s_runtime_config["WindowXPosition"].ValueAs<int>() : SDL_WINDOWPOS_CENTERED;
-  int ypos = s_runtime_config["WindowYPosition"].Exists() ? s_runtime_config["WindowYPosition"].ValueAs<int>() : SDL_WINDOWPOS_CENTERED;
+  int xpos = s_runtime_config["WindowXPosition"].ValueAsDefault<int>(SDL_WINDOWPOS_CENTERED);
+  int ypos = s_runtime_config["WindowYPosition"].ValueAsDefault<int>(SDL_WINDOWPOS_CENTERED);
   SDL_SetWindowPosition(s_window, xpos, ypos);
 
   if (s_runtime_config["BorderlessWindow"].ValueAs<bool>())
@@ -993,12 +994,14 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   uint64_t nextTime = 0;
 
   // Initialize the renderers
-  SuperAA* superAA = new SuperAA(aaValue);
+  SuperAA* superAA = new SuperAA(aaValue, CRTcolors);
   superAA->Init(totalXRes, totalYRes);  // pass actual frame sizes here
   CRender2D *Render2D = new CRender2D(s_runtime_config);
   IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *) new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *) new Legacy3D::CLegacy3D(s_runtime_config));
 
-  if (Result::OKAY != Render2D->Init(xOffset*aaValue, yOffset*aaValue, xRes*aaValue, yRes*aaValue, totalXRes*aaValue, totalYRes*aaValue, superAA->GetTargetID()))
+  UpscaleMode upscaleMode = (UpscaleMode)s_runtime_config["UpscaleMode"].ValueAs<int>();
+
+  if (Result::OKAY != Render2D->Init(xOffset*aaValue, yOffset*aaValue, xRes*aaValue, yRes*aaValue, totalXRes*aaValue, totalYRes*aaValue, superAA->GetTargetID(), upscaleMode))
     goto QuitError;
   if (Result::OKAY != Render3D->Init(xOffset*aaValue, yOffset*aaValue, xRes*aaValue, yRes*aaValue, totalXRes*aaValue, totalYRes*aaValue, superAA->GetTargetID()))
     goto QuitError;
@@ -1109,7 +1112,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       {
         Model3->PauseThreads();
         SetAudioEnabled(false);
-        sprintf(titleStr, "%s (Paused)", baseTitleStr);
+        snprintf(titleStr, sizeof(titleStr), "%s (Paused)", baseTitleStr);
         SDL_SetWindowTitle(s_window, titleStr);
       }
       else
@@ -1146,7 +1149,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       superAA->Init(totalXRes, totalYRes);
       Render2D = new CRender2D(s_runtime_config);
       Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *) new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *) new Legacy3D::CLegacy3D(s_runtime_config));
-      if (Result::OKAY != Render2D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID()))
+      if (Result::OKAY != Render2D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID(), upscaleMode))
         goto QuitError;
       if (Result::OKAY != Render3D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID()))
         goto QuitError;
@@ -1323,7 +1326,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       if (measurementTicks >= s_perfCounterFrequency) // update FPS every 1 second (s_perfCounterFrequency is how many perf ticks in one second)
       {
         double fps = double(fpsFramesElapsed) / (double(measurementTicks) / double(s_perfCounterFrequency));
-        sprintf(titleStr, "%s - %1.3f FPS%s", baseTitleStr, fps, paused ? " (Paused)" : "");
+        snprintf(titleStr, sizeof(titleStr), "%s - %1.3f FPS%s", baseTitleStr, fps, paused ? " (Paused)" : "");
         SDL_SetWindowTitle(s_window, titleStr);
         prevFPSTicks = currentFPSTicks;   // reset tick count
         fpsFramesElapsed = 0;             // reset frame count
@@ -1504,6 +1507,8 @@ static Util::Config::Node DefaultConfig()
   config.Set("FullScreen", false);
   config.Set("BorderlessWindow", false);
   config.Set("Supersampling", 1);
+  config.Set("CRTcolors", int(0));
+  config.Set("UpscaleMode", 2);
   config.Set("WideScreen", false);
   config.Set("Stretch", false);
   config.Set("WideBackground", false);
@@ -1572,6 +1577,7 @@ static void Help(void)
   puts("  -print-games            List supported games and quit");
   printf("  -game-xml-file=<file>   ROM set definition file [Default: %s]\n", s_gameXMLFilePath.c_str());
   printf("  -log-output=<outputs>   Log output destination(s) [Default: %s]\n", s_logFilePath.c_str());
+  puts("  -Title=<s>              Change Display Title. [Default: Supermodel]");
   puts("  -log-level=<level>      Logging threshold [Default: info]");
   puts("");
   puts("Core Options:");
@@ -1592,6 +1598,8 @@ static void Help(void)
   puts("  -wide-bg                When wide-screen mode is enabled, also expand the 2D");
   puts("                          background layer to screen width");
   puts("  -stretch                Fit viewport to resolution, ignoring aspect ratio");
+  puts("  -upscalemode=<n>        2D layer upscaling filter mode (range 0-3)");
+  puts("  -crtcolors=<n>          CRT color emulation (range 0-5)");
   puts("  -no-throttle            Disable frame rate lock");
   puts("  -vsync                  Lock to vertical refresh rate [Default]");
   puts("  -no-vsync               Do not lock to vertical refresh rate");
@@ -1684,7 +1692,7 @@ struct ParsedCommandLine
 static ParsedCommandLine ParseCommandLine(int argc, char **argv)
 {
   ParsedCommandLine cmd_line;
-  const std::map<std::string, std::string> valued_options
+  static const std::map<std::string, std::string> valued_options
   { // -option=value
     { "-game-xml-file",         "GameXMLFile"             },
     { "-load-state",            "InitStateFile"           },
@@ -1707,7 +1715,7 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
     { "-log-output",            "LogOutput"               },
     { "-log-level",             "LogLevel"                }
   };
-  const std::map<std::string, std::pair<std::string, bool>> bool_options
+  static const std::map<std::string, std::pair<std::string, bool>> bool_options
   { // -option
     { "-threads",             { "MultiThreaded",    true } },
     { "-no-threads",          { "MultiThreaded",    false } },
@@ -1868,6 +1876,52 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
               }
           }
       }
+      else if (arg == "-crtcolors" || arg.find("-crtcolors=") == 0) {
+
+          std::vector<std::string> parts = Util::Format(arg).Split('=');
+
+          if (parts.size() != 2)
+          {
+              ErrorLog("'-crtcolors' requires an integer argument (e.g., '-crtcolors=1').");
+              cmd_line.error = true;
+          }
+          else {
+
+              try {
+                  int val = std::stoi(parts[1]);
+                  val = std::clamp(val, 0, 5);
+
+                  cmd_line.config.Set("CRTcolors", val);
+              }
+              catch (...) {
+                  ErrorLog("'-crtcolors' requires an integer argument (e.g., '-crtcolors=1').");
+                  cmd_line.error = true;
+              }
+          }
+      }
+      else if (arg == "-upscalemode" || arg.find("-upscalemode=") == 0) {
+
+          std::vector<std::string> parts = Util::Format(arg).Split('=');
+
+          if (parts.size() != 2)
+          {
+              ErrorLog("'-upscalemode' requires an integer argument (e.g., '-upscalemode=1').");
+              cmd_line.error = true;
+          }
+          else {
+
+              try {
+                  int val = std::stoi(parts[1]);
+                  val = std::clamp(val, 0, 3);
+
+                  cmd_line.config.Set("UpscaleMode", val);
+              }
+              catch (...) {
+                  ErrorLog("'-upscalemode' requires an integer argument (e.g., '-upscalemode=1').");
+                  cmd_line.error = true;
+              }
+          }
+      }
       else if (arg == "-true-hz")
         cmd_line.config.Set("RefreshRate", 57.524f);
       else if (arg == "-print-gl-info")
@@ -2017,6 +2071,7 @@ int main(int argc, char **argv)
   std::string selectedInputSystem = s_runtime_config["InputSystem"].ValueAs<std::string>();
 
   aaValue = s_runtime_config["Supersampling"].ValueAs<int>();
+  CRTcolors = (CRTcolor)s_runtime_config["CRTcolors"].ValueAs<int>();
 
   // Create a window
   xRes = 496;
