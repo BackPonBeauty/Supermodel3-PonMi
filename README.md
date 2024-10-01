@@ -1,5 +1,5 @@
 # Supermodel: A Sega Model 3 Arcade Emulator
-*Copyright 2003-2023 The Supermodel Team*
+*Copyright 2003-2024 The Supermodel Team*
 
 ## Overview
 
@@ -122,8 +122,3 @@ Please set it in Supermodel.ini.
 
 ![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/d9f6fd19-e293-4201-b951-9c8577e94924)
 
-
-
-* Close the terminal window that opens (after clicking open)
-
-Details: https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac
