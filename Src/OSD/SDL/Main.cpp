@@ -132,6 +132,7 @@ static unsigned  xRes, yRes;            // renderer output resolution (can be sm
 static unsigned  totalXRes, totalYRes;  // total resolution (the whole GL viewport)
 static int aaValue = 1;                 // default is 1 which is no aa
 static const char*  title;              // title
+static float  xAr, yAr;              // AspectRatio 496*384 or 640*480)
 static CRTcolor CRTcolors = CRTcolor::None; // default to no gamma/color adaption being done
 
 /*
@@ -153,7 +154,7 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   float yResF = float(*yResPtr);
   if (keepAspectRatio)
   {
-    float model3Ratio = float(496.0/384.0);
+    float model3Ratio = float(xAr/yAr);
     if (yResF < (xResF/model3Ratio))
       xResF = yResF*model3Ratio;
     if (xResF < (yResF*model3Ratio))
@@ -189,7 +190,7 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   *xResPtr = (unsigned) xResF;
   *yResPtr = (unsigned) yResF;
 
-  UINT32 correction = (UINT32)(((*yResPtr / 384.) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
+  UINT32 correction = (UINT32)(((*yResPtr / yAr) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
 
   glEnable(GL_SCISSOR_TEST);
 
@@ -392,7 +393,7 @@ static Result ResizeGLScreen(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigne
  */
 static void PrintGLInfo(bool createScreen, bool infoLog, bool printExtensions)
 {
-  unsigned xOffset, yOffset, xRes=496, yRes=384, totalXRes, totalYRes;
+  unsigned xOffset, yOffset, xRes=xAr, yRes=yAr, totalXRes, totalYRes;
   if (createScreen)
   {
     if (Result::OKAY != CreateGLScreen(false, false, "Supermodel - Querying OpenGL Information...", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
@@ -943,6 +944,17 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   // Set the video mode
   char baseTitleStr[128];
   char titleStr[128];
+  if (s_runtime_config["true-ar"].ValueAs<bool>())
+  {
+    xAr = 640.0;
+    yAr = 480.0;
+  }
+  else
+  {
+    xAr = 496.0;
+    yAr = 384.0;
+  }
+
   totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
   totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
   title = s_runtime_config["Title"].ValueAs<std::string>().c_str();
@@ -1473,6 +1485,7 @@ static Util::Config::Node DefaultConfig()
   Util::Config::Node config("Global");
   config.Set("GameXMLFile", s_gameXMLFilePath);
   config.Set("Title", "Supermodel - PonMi");
+  config.Set("true-ar", false);
   config.Set("InitStateFile", "");
   // CModel3
   config.Set("MultiThreaded", true);
@@ -1503,8 +1516,8 @@ static Util::Config::Node DefaultConfig()
   // Platform-specific/UI
   config.Set("New3DEngine", true);
   config.Set("QuadRendering", false);
-  config.Set("XResolution", "496");
-  config.Set("YResolution", "384");
+  config.Set("XResolution", "640");
+  config.Set("YResolution", "480");
   config.SetEmpty("WindowXPosition");
   config.SetEmpty("WindowYPosition");
   config.Set("FullScreen", false);
@@ -1581,6 +1594,7 @@ static void Help(void)
   printf("  -game-xml-file=<file>   ROM set definition file [Default: %s]\n", s_gameXMLFilePath.c_str());
   printf("  -log-output=<outputs>   Log output destination(s) [Default: %s]\n", s_logFilePath.c_str());
   puts("  -Title=<s>              Change Display Title. [Default: Supermodel]");
+  puts("  -true-ar                Change the base resolution from 492*386 to 640*480");
   puts("  -log-level=<level>      Logging threshold [Default: info]");
   puts("");
   puts("Core Options:");
@@ -1591,7 +1605,7 @@ static void Help(void)
   puts("  -load-state=<file>      Load save state after starting");
   puts("");
   puts("Video Options:");
-  puts("  -res=<x>,<y>            Resolution [Default: 496,384]");
+  puts("  -res=<x>,<y>            Resolution [Default: 640,480]");
   puts("  -ss=<n>                 Supersampling (range 1-8)");
   puts("  -window-pos=<x>,<y>     Window position [Default: centered]");
   puts("  -window                 Windowed mode [Default]");
@@ -1697,6 +1711,7 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
   ParsedCommandLine cmd_line;
   static const std::map<std::string, std::string> valued_options
   { // -option=value
+    { "-title",                 "Title",                  },
     { "-game-xml-file",         "GameXMLFile"             },
     { "-load-state",            "InitStateFile"           },
     { "-ppc-frequency",         "PowerPCFrequency"        },
@@ -1813,7 +1828,7 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
       {
         std::vector<std::string> parts = Util::Format(arg).Split('=');
         if (parts.size() != 2)
-        {ErrorLog("'-res' requires both a width and height (e.g., '-res=496,384').");
+        {ErrorLog("'-res' requires both a width and height (e.g., '-res=640,480').");
           cmd_line.error = true;
         }
         else
@@ -1828,7 +1843,7 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
           }
           else
           {
-            ErrorLog("'-res' requires both a width and height (e.g., '-res=496,384').");
+            ErrorLog("'-res' requires both a width and height (e.g., '-res=640,480').");
             cmd_line.error = true;
           }
         }
@@ -1927,6 +1942,8 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
       }
       else if (arg == "-true-hz")
         cmd_line.config.Set("RefreshRate", 57.524f);
+      else if (arg == "-true-ar")
+        cmd_line.config.Set("true-ar", true);
       else if (arg == "-print-gl-info")
         cmd_line.print_gl_info = true;
       else if (arg == "-config-inputs")
@@ -2080,8 +2097,8 @@ int main(int argc, char **argv)
   CRTcolors = (CRTcolor)s_runtime_config["CRTcolors"].ValueAs<int>();
 
   // Create a window
-  xRes = 496;
-  yRes = 384;
+  xRes = xAr;
+  yRes = yAr;
   if (Result::OKAY != CreateGLScreen(s_runtime_config["New3DEngine"].ValueAs<bool>(), s_runtime_config["QuadRendering"].ValueAs<bool>(),"Supermodel", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
   {
     exitCode = 1;
