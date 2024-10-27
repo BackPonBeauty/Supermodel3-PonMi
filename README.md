@@ -122,3 +122,7 @@ Please set it in Supermodel.ini.
 
 ![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/d9f6fd19-e293-4201-b951-9c8577e94924)
 
+Change base Resolution 496x384 to 640x480(4:3)
+
+![0001](https://github.com/user-attachments/assets/6fdd702a-6de6-41eb-8c4e-a69619e2e21d)
+
