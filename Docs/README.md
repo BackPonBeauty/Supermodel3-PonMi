@@ -110,19 +110,3 @@ If you try and run a macOS binary that was downloaded from the internet and/or b
 * Close the terminal window that opens (after clicking open)
 
 Details: https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac
-
-### PonMi
-
-You can assign keys for "Pause", "Save State", "Load State", "Change Save Slot".
-
-![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/129fbecd-1610-4f01-a115-437aaf04e108)
-
-You can freely set the title.
-Please set it in Supermodel.ini.
-
-![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/d9f6fd19-e293-4201-b951-9c8577e94924)
-
-Change base Resolution 496x384 to 640x480(4:3)
-
-![0001](https://github.com/user-attachments/assets/6fdd702a-6de6-41eb-8c4e-a69619e2e21d)
-
