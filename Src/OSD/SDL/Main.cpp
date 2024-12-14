@@ -946,8 +946,8 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   char titleStr[128];
   if (s_runtime_config["true-ar"].ValueAs<bool>())
   {
-    xAr = 640.0;
-    yAr = 480.0;
+    xAr = 512.0;
+    yAr = 384.0;
   }
   else
   {
