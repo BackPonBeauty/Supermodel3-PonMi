@@ -131,6 +131,8 @@ static unsigned  xOffset, yOffset;      // offset of renderer output within Open
 static unsigned  xRes, yRes;            // renderer output resolution (can be smaller than GL viewport)
 static unsigned  totalXRes, totalYRes;  // total resolution (the whole GL viewport)
 static int aaValue = 1;                 // default is 1 which is no aa
+static const char*  title;              // title
+static float  xAr = 496.0, yAr = 384.0;                 // AspectRatio 496*384 or 512*384)
 static CRTcolor CRTcolors = CRTcolor::None; // default to no gamma/color adaption being done
 
 /*
@@ -152,7 +154,7 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   float yResF = float(*yResPtr);
   if (keepAspectRatio)
   {
-    float model3Ratio = float(496.0/384.0);
+    float model3Ratio = float(xAr/yAr);//float model3Ratio = float(496.0/384.0);
     if (yResF < (xResF/model3Ratio))
       xResF = yResF*model3Ratio;
     if (xResF < (yResF*model3Ratio))
@@ -188,7 +190,7 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   *xResPtr = (unsigned) xResF;
   *yResPtr = (unsigned) yResF;
 
-  UINT32 correction = (UINT32)(((*yResPtr / 384.) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
+  UINT32 correction = (UINT32)(((*yResPtr / yAr) * 2.) + 0.5);//UINT32 correction = (UINT32)(((*yResPtr / 384.) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
 
   glEnable(GL_SCISSOR_TEST);
 
@@ -391,7 +393,7 @@ static Result ResizeGLScreen(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigne
  */
 static void PrintGLInfo(bool createScreen, bool infoLog, bool printExtensions)
 {
-  unsigned xOffset, yOffset, xRes=496, yRes=384, totalXRes, totalYRes;
+  unsigned xOffset, yOffset, xRes=xAr, yRes=yAr, totalXRes, totalYRes;//unsigned xOffset, yOffset, xRes=496, yRes=384, totalXRes, totalYRes;
   if (createScreen)
   {
     if (Result::OKAY != CreateGLScreen(false, false, "Supermodel - Querying OpenGL Information...", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
@@ -942,9 +944,20 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   // Set the video mode
   char baseTitleStr[128];
   char titleStr[128];
+  if (s_runtime_config["true-ar"].ValueAs<bool>())
+  {
+    xAr = 512.0;
+    yAr = 384.0;
+  }
+  else
+  {
+    xAr = 496.0;
+    yAr = 384.0;
+  }
   totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
   totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
-  snprintf(baseTitleStr, sizeof(baseTitleStr), "Supermodel - %s", game.title.c_str());
+  title = s_runtime_config["Title"].ValueAs<std::string>().c_str();
+  sprintf(baseTitleStr,"%s - %s",title ,  game.title.c_str());
   SDL_SetWindowTitle(s_window, baseTitleStr);
   SDL_SetWindowSize(s_window, totalXRes, totalYRes);
 
@@ -1472,6 +1485,8 @@ static Util::Config::Node DefaultConfig()
   config.Set("GameXMLFile", s_gameXMLFilePath);
   config.Set("InitStateFile", "");
   // CModel3
+  config.Set("Title", "Supermodel - PonMi");
+  config.Set("true-ar", false);
   config.Set("MultiThreaded", true);
   config.Set("GPUMultiThreaded", true);
   // 2D and 3D graphics engines
@@ -1923,6 +1938,8 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
       }
       else if (arg == "-true-hz")
         cmd_line.config.Set("RefreshRate", 57.524f);
+      else if (arg == "-true-ar")
+        cmd_line.config.Set("true-ar", true);
       else if (arg == "-print-gl-info")
         cmd_line.print_gl_info = true;
       else if (arg == "-config-inputs")
@@ -2076,8 +2093,8 @@ int main(int argc, char **argv)
   CRTcolors = (CRTcolor)s_runtime_config["CRTcolors"].ValueAs<int>();
 
   // Create a window
-  xRes = 496;
-  yRes = 384;
+  xRes = xAr;
+  yRes = yAr;
   if (Result::OKAY != CreateGLScreen(s_runtime_config["New3DEngine"].ValueAs<bool>(), s_runtime_config["QuadRendering"].ValueAs<bool>(),"Supermodel", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
   {
     exitCode = 1;
