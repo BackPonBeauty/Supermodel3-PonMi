@@ -1,4 +1,4 @@
-# Supermodel - PonMi Edtion
+# Supermodel - PonMi Edition
 
 This version of Supermodel renders in a true 4:3 aspect ratio using the -truear option.
 
