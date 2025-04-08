@@ -1,3 +1,11 @@
+# Supermodel - PonMi Edtion
+
+This version of Supermodel renders in a true 4:3 aspect ratio using the -truear option.
+
+Additionally, the Pause, Save, Save Slot Change, and Load buttons can be mapped to a controller.
+![380390385-d99b133b-d092-4c31-bf3e-8453df9d042f](https://github.com/user-attachments/assets/e3b1844e-b14b-4daf-8db8-a5a73281ac44)
+
+
 # Supermodel: A Sega Model 3 Arcade Emulator
 *Copyright 2003-2024 The Supermodel Team*
 
