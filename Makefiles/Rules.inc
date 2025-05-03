@@ -1,7 +1,7 @@
 ##
 ## Supermodel
 ## A Sega Model 3 Arcade Emulator.
-## Copyright 2003-2024 The Supermodel Team
+## Copyright 2003-2025 The Supermodel Team
 ##
 ## This file is part of Supermodel.
 ##
@@ -33,7 +33,8 @@
 OBJ_DIR = obj$(strip $(BITS))
 BIN_DIR = bin$(strip $(BITS))
 
-OUTFILE = supermodel
+SUPERMODEL_BINARY = supermodel
+DISASSEMBLER_BINARY = ppcd
 
 
 ###############################################################################
@@ -45,8 +46,9 @@ OUTFILE = supermodel
 #
 SUPERMODEL_BUILD_FLAGS =
 
-# If render state analyser is enabled, need to define DEBUG
-ifeq ($(strip $(DEBUG)),1)
+# EXTRA_DEBUG enables render state analyser and additional debugging code by
+# defining DEBUG
+ifeq ($(strip $(EXTRA_DEBUG)),1)
 	SUPERMODEL_BUILD_FLAGS += -DDEBUG
 endif
 
@@ -55,26 +57,29 @@ ifeq ($(strip $(NET_BOARD)),1)
 	SUPERMODEL_BUILD_FLAGS += -DNET_BOARD
 endif
 
-# If Bart's new frame timing is enabled, need to define NEW_FRAME_TIMING
-ifeq ($(strip $(NEW_FRAME_TIMING)),1)
-	SUPERMODEL_BUILD_FLAGS += -DNEW_FRAME_TIMING
-endif
-
 # If built-in debugger enabled, need to define SUPERMODEL_DEBUGGER
 ifeq ($(strip $(ENABLE_DEBUGGER)),1)
 	SUPERMODEL_BUILD_FLAGS += -DSUPERMODEL_DEBUGGER
 endif
+
+# DEBUG will build a debug build but does *not* enable extra debug logging and
+# therefore does not modify SUPERMODEL_BUILD_FLAGS
 
 #
 # Compiler options
 #
 ARCH =
 OPT = -O3
+ifeq ($(strip $(DEBUG)),1)
+	OPT = -g	# no optimization; debug mode
+endif
 WARN = -Wall
 CSTD = -std=iso9899:2011
 CXXSTD = -std=c++17
 LDOPT = -s
-
+ifeq ($(strip $(DEBUG)),1)
+	LDOPT =
+endif
 
 #
 # Construct the compiler (C and C++) and linker flags
@@ -82,7 +87,7 @@ LDOPT = -s
 COMMON_CFLAGS = -c $(ARCH) $(OPT) $(WARN) $(addprefix -I,$(sort $(INCLUDE_DIRS))) -DGLEW_STATIC $(SUPERMODEL_BUILD_FLAGS)
 CFLAGS = $(COMMON_CFLAGS) $(CSTD)
 CXXFLAGS = $(PLATFORM_CXXFLAGS) $(COMMON_CFLAGS) $(CXXSTD)
-LDFLAGS = -o $(BIN_DIR)/$(OUTFILE) $(PLATFORM_LDFLAGS) $(LDOPT)
+LDFLAGS = -o $(BIN_DIR)/$(SUPERMODEL_BINARY) $(PLATFORM_LDFLAGS) $(LDOPT)
 
 
 ###############################################################################
@@ -216,7 +221,7 @@ INCLUDE_DIRS = $(sort $(foreach file,$(SRC_FILES),$(dir	$(file))))
 # generated dependencies because otherwise, make gets confused for some reason
 # and thinks the default target is just one of the object files.
 #
-all:	$(BIN_DIR)/$(OUTFILE)
+all:	$(BIN_DIR)/$(DISASSEMBLER_BINARY) $(BIN_DIR)/$(SUPERMODEL_BINARY)
 
 #
 # Supermodel3.com release targets: used only to create official builds stamped
@@ -236,7 +241,7 @@ release:: all
 #
 # Github release flow (not yet used).
 #
-PKG_FILES += $(BIN_DIR)/$(OUTFILE) Docs/README.txt Docs/LICENSE.txt Config Assets
+PKG_FILES += $(BIN_DIR)/$(SUPERMODEL_BINARY) Docs/README.txt Docs/LICENSE.txt Config Assets
 
 pkg: pkg/$(PKG_TYPE)
 	$(info Cleaning up            : $(PKG_STAGE_PATH))
@@ -261,7 +266,7 @@ pkg/stage:: pkg/path
 	  echo "NVRAM files go here." > NVRAM/DIR.txt && \
 	  echo "Save states go here." > Saves/DIR.txt && \
 	  echo "Recommended (but not mandatory) location for ROM sets." > ROMs/DIR.txt && \
-	  mv $(BIN_DIR)/$(OUTFILE) . && rmdir $(BIN_DIR) && \
+	  mv $(BIN_DIR)/$(SUPERMODEL_BINARY) . && rmdir $(BIN_DIR) && \
 	  mv Docs//* . && rmdir Docs
 	$(info Generating             : $(PKG_STAGE_PATH)/CHANGES.txt)
 	$(SILENT)OUTPUT=$(PKG_STAGE_PATH)/CHANGES.txt ./Scripts/changelog.sh
@@ -294,10 +299,19 @@ version: set_version
 #
 # Supermodel binary
 #
-$(BIN_DIR)/$(OUTFILE):	$(BIN_DIR) $(OBJ_FILES)
+$(BIN_DIR)/$(SUPERMODEL_BINARY):	$(BIN_DIR) $(OBJ_FILES)
 	$(info --------------------------------------------------------------------------------)
-	$(info Linking Supermodel     : $(BIN_DIR)/$(OUTFILE))
+	$(info Linking Supermodel     : $(BIN_DIR)/$(SUPERMODEL_BINARY))
 	$(SILENT)$(LD) $(OBJ_FILES) $(LDFLAGS)
+	$(info --------------------------------------------------------------------------------)
+
+#
+# Disassembler binary (we assume $(LD) can also compile here, which is sloppy)
+#
+$(BIN_DIR)/$(DISASSEMBLER_BINARY):  $(BIN_DIR) Src/CPU/PowerPC/PPCDisasm.cpp
+	$(info --------------------------------------------------------------------------------)
+	$(info Building Disassembler  : $(BIN_DIR)/$(DISASSEMBLER_BINARY))
+	$(SILENT)$(LD) -o $(BIN_DIR)/$(DISASSEMBLER_BINARY) Src/CPU/PowerPC/PPCDisasm.cpp -DSTANDALONE $(OPT) $(WARN) $(addprefix -I,$(sort $(INCLUDE_DIRS))) $(CXXSTD) $(PLATFORM_LDFLAGS)
 	$(info --------------------------------------------------------------------------------)
 
 #
@@ -349,7 +363,6 @@ $(OBJ_DIR)/%.o:	%.c | $(OBJ_DIR)
 	$(SILENT)$(CC) -MM -MP -MT $(OBJ_DIR)/$(*F).o -MT $(OBJ_DIR)/$(*F).d $(CFLAGS) $< > $(OBJ_DIR)/$(*F).d
 	$(info Compiling              : $< -> $@)
 	$(SILENT)$(CC) $(CFLAGS) $< -o $@
-
 
 #
 # Musashi 68K emulator

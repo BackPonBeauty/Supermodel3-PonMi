@@ -701,7 +701,7 @@ static void TestPolygonHeaderBits(IEmulator *Emu)
  Different subsystems output their own blocks.
 ******************************************************************************/
 
-static const int STATE_FILE_VERSION = 4;  // save state file version
+static const int STATE_FILE_VERSION = 5;  // save state file version
 static const int NVRAM_FILE_VERSION = 0;  // NVRAM file version
 static unsigned s_saveSlot = 0;           // save state slot #
 
@@ -725,7 +725,7 @@ static void SaveState(IEmulator *Model3)
   Model3->SaveState(&SaveState);
   SaveState.Close();
   printf("Saved state to '%s'.\n", file_path.c_str());
-  DebugLog("Saved state to '%s'.\n", file_path.c_str());
+  InfoLog("Saved state to '%s'.", file_path.c_str());
 }
 
 static void LoadState(IEmulator *Model3, std::string file_path = std::string())
@@ -761,7 +761,7 @@ static void LoadState(IEmulator *Model3, std::string file_path = std::string())
   Model3->LoadState(&SaveState);
   SaveState.Close();
   printf("Loaded state from '%s'.\n", file_path.c_str());
-  DebugLog("Loaded state from '%s'.\n", file_path.c_str());
+  InfoLog("Loaded state from '%s'.", file_path.c_str());
 }
 
 static void SaveNVRAM(IEmulator *Model3)
@@ -783,7 +783,7 @@ static void SaveNVRAM(IEmulator *Model3)
   // Save NVRAM
   Model3->SaveNVRAM(&NVRAM);
   NVRAM.Close();
-  DebugLog("Saved NVRAM to '%s'.\n", file_path.c_str());
+  InfoLog("Saved NVRAM to '%s'.", file_path.c_str());
 }
 
 static void LoadNVRAM(IEmulator *Model3)
@@ -817,7 +817,7 @@ static void LoadNVRAM(IEmulator *Model3)
   // Load
   Model3->LoadNVRAM(&NVRAM);
   NVRAM.Close();
-  DebugLog("Loaded NVRAM from '%s'.\n", file_path.c_str());
+  InfoLog("Loaded NVRAM from '%s'.", file_path.c_str());
 }
 
 
@@ -1149,9 +1149,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
 
       // Delete renderers and recreate them afterwards since GL context will most likely be lost when switching from/to fullscreen
       delete Render2D;
-      delete Render3D;
       Render2D = nullptr;
-      Render3D = nullptr;
 
       // Resize screen
       totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
@@ -1164,15 +1162,13 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       // Recreate renderers and attach to the emulator
       superAA->Init(totalXRes, totalYRes);
       Render2D = new CRender2D(s_runtime_config);
-      Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *) new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *) new Legacy3D::CLegacy3D(s_runtime_config));
+
       if (Result::OKAY != Render2D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID(), upscaleMode))
         goto QuitError;
       if (Result::OKAY != Render3D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID()))
         goto QuitError;
 
       Model3->AttachRenderers(Render2D, Render3D, superAA);
-
-      Render3D->UploadTextures(0, 0, 0, 2048, 2048);    // sync texture memory
 
       Inputs->GetInputSystem()->SetMouseVisibility(!s_runtime_config["FullScreen"].ValueAs<bool>());
     }
@@ -2127,8 +2123,8 @@ int main(int argc, char **argv)
   CRTcolors = (CRTcolor)s_runtime_config["CRTcolors"].ValueAs<int>();
 
   // Create a window
-  xRes = xAr;
-  yRes = yAr;
+  xRes = 496;
+  yRes = 384;
   if (Result::OKAY != CreateGLScreen(s_runtime_config["New3DEngine"].ValueAs<bool>(), s_runtime_config["QuadRendering"].ValueAs<bool>(),"Supermodel", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
   {
     exitCode = 1;
