@@ -120,7 +120,6 @@ $tf/
 # Guidance Automation Toolkit
 *.gpState
 
-
 # ReSharper is a .NET coding add-in
 _ReSharper*/
 
@@ -364,6 +363,9 @@ Src/CPU/68K/Musashi/m68kops.h
 nvram/
 roms/
 saves/
+
+# Ignore Supermodel package
+pkg/
 
 
 
