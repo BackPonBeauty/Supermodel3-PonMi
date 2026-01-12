@@ -16,7 +16,8 @@ The aim of the Supermodel project is to develop an emulator that is both accurat
 
 ## How To Get It
 
-Windows builds are updated automatically and available on the official Supermodel [download page](https://supermodel3.com/Download.html). Linux and macOS users currently have to build from source.
+Automated builds for Windows, macOS and Linux are now available here on GitHub.  
+Check out the releases page [here](https://github.com/trzy/Supermodel/releases).
 
 ## Build Instructions
 
@@ -58,6 +59,7 @@ Ensure SDL2 is installed. Most package managers ought to have this available. Fo
 ```
 sudo apt install libsdl2-dev
 sudo apt install libsdl2-net-dev
+sudo apt install libglu1-mesa-dev
 ```
 
 And then build Supermodel:
@@ -110,31 +112,3 @@ If you try and run a macOS binary that was downloaded from the internet and/or b
 * Close the terminal window that opens (after clicking open)
 
 Details: https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac
-
-### PonMiMore actions
-
-
-
-You can assign keys for "Pause", "Save State", "Load State", "Change Save Slot".
-
-
-
-![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/129fbecd-1610-4f01-a115-437aaf04e108)
-
-
-
-You can freely set the title.
-
-Please set it in Supermodel.ini.
-
-
-
-![image](https://github.com/BackPonBeauty/Supermodel3-PonMi/assets/107375174/d9f6fd19-e293-4201-b951-9c8577e94924)
-
-
-
-Change base Resolution 496x384 to 512x384(4:3)
-
-
-
-![0001](https://github.com/user-attachments/assets/6fdd702a-6de6-41eb-8c4e-a69619e2e21d)

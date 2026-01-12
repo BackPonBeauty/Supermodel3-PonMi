@@ -1879,10 +1879,6 @@ static void Help(void)
   puts("  -no-white-flash         Disables white flash when games disable 3D rendering");
   puts("  -vert-shader=<file>     Load Real3D vertex shader for 3D rendering");
   puts("  -frag-shader=<file>     Load Real3D fragment shader for 3D rendering");
-  puts("  -vert-shader-fog=<file> Load Real3D scroll fog vertex shader (new engine)");
-  puts("  -frag-shader-fog=<file> Load Real3D scroll fog fragment shader (new engine)");
-  puts("  -vert-shader-2d=<file>  Load tile map vertex shader");
-  puts("  -frag-shader-2d=<file>  Load tile map fragment shader");
   puts("  -print-gl-info          Print OpenGL driver information and quit");
   puts("");
   puts("Audio Options:");
@@ -1965,10 +1961,6 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
     { "-crosshair-style",       "CrosshairStyle"          },
     { "-vert-shader",           "VertexShader"            },
     { "-frag-shader",           "FragmentShader"          },
-    { "-vert-shader-fog",       "VertexShaderFog"         },
-    { "-frag-shader-fog",       "FragmentShaderFog"       },
-    { "-vert-shader-2d",        "VertexShader2D"          },
-    { "-frag-shader-2d",        "FragmentShader2D"        },
     { "-sound-volume",          "SoundVolume"             },
     { "-music-volume",          "MusicVolume"             },
     { "-balance",               "Balance"                 },
