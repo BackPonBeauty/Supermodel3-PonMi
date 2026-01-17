@@ -137,7 +137,7 @@ static int aaValue = 1;                 // default is 1 which is no aa
 static const char*  title;              // title
 static float  xAr = 496.0, yAr = 384.0;                 // AspectRatio 496*384 or 512*384)
 static CRTcolor CRTcolors = CRTcolor::None; // default to no gamma/color adaption being done
-
+float scanlineStrength = 0.85f;
 /*
  * Crosshair stuff
  */
@@ -1009,9 +1009,10 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   s_perfCounterFrequency = SDL_GetPerformanceFrequency();
   uint64_t perfCountPerFrame = s_perfCounterFrequency * 1000 / GetDesiredRefreshRateMilliHz();
   uint64_t nextTime = 0;
-
+  
   // Initialize the renderers
-  SuperAA* superAA = new SuperAA(aaValue, CRTcolors);
+  scanlineStrength = s_runtime_config["ScanlineStrength"].ValueAs<float>();
+  SuperAA* superAA = new SuperAA(aaValue, CRTcolors, scanlineStrength , totalYRes);
   superAA->Init(totalXRes, totalYRes);  // pass actual frame sizes here
   CRender2D *Render2D = new CRender2D(s_runtime_config);
   IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *) new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *) new Legacy3D::CLegacy3D(s_runtime_config));
@@ -1094,6 +1095,10 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
     {
       // Quit emulator
       quit = true;
+    }
+    if (Inputs->uiToggleScanline->Pressed())
+    {
+      superAA->ToggleScanline();
     }
     else if (Inputs->uiReset->Pressed())
     {

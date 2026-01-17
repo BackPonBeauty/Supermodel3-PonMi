@@ -86,6 +86,7 @@ private:
 
 public:
   // UI controls
+  std::shared_ptr<CSwitchInput> uiToggleScanline;
   std::shared_ptr<CSwitchInput> uiExit;
   std::shared_ptr<CSwitchInput> uiReset;
   std::shared_ptr<CSwitchInput> uiPause;
@@ -284,6 +285,8 @@ public:
    * Returns true if the inputs were configured okay or false if the user exited without requesting to save changes.
    */
   bool ConfigureInputs(const Game &game, unsigned dispX, unsigned dispY, unsigned dispW, unsigned dispH);
+  
+  bool scanlineToggleRequest = false;
 
   std::vector<std::shared_ptr<CInput>> GetGameInputs(const Game& game);
 

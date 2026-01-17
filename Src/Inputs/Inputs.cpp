@@ -46,6 +46,7 @@ CInputs::CInputs(std::shared_ptr<CInputSystem> system)
 	// the config file.
 
 	// UI Controls
+	uiToggleScanline   = AddSwitchInput("UIScanline",         "Toggle Scanline",       Game::INPUT_COMMON, "KEY_F4");
 	uiExit             = AddSwitchInput("UIExit",             "Exit UI",               Game::INPUT_UI, "KEY_ESCAPE");
 	uiReset            = AddSwitchInput("UIReset",            "Reset",                 Game::INPUT_UI, "KEY_ALT+KEY_R");
 	uiPause            = AddSwitchInput("UIPause",            "Pause",                 Game::INPUT_COMMON, "KEY_ALT+KEY_P");
@@ -773,7 +774,8 @@ bool CInputs::Poll(const Game *game, unsigned dispX, unsigned dispY, unsigned di
 		if ((*it)->IsUIInput() || ((*it)->gameFlags & gameFlags))
 			(*it)->Poll();
 	}
-	return true;
+
+    return true;
 }
 
 void CInputs::DumpState(const Game *game)

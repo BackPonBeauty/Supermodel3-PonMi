@@ -13,19 +13,27 @@
 class SuperAA
 {
 public:
-	SuperAA(int aaValue, CRTcolor CRTcolors);
+	SuperAA(int aaValue, CRTcolor CRTcolors , float scanlineStrength , int totalYRes);
 	~SuperAA();
 
 	void Init(int width, int height);		// width & height are real window dimensions
 	void Draw();							// this is a no-op if AA is 1 and CRTcolors 0, since we'll be drawing straight on the back buffer anyway
 
 	GLuint GetTargetID();
+	GLint m_locScanlineEnable = -1;
+	GLint m_locScanlineStrength = -1;
+	void ToggleScanline();
+    void SetScanlineEnable(bool enable);
+    bool IsScanlineEnabled() const;
 
 private:
 	FBO m_fbo;
 	GLSLShader m_shader;
 	const int m_aa;
 	const CRTcolor m_crtcolors;
+	bool m_scanlineEnable;
+	float m_scanlineStrength;
+	int m_totalYRes;
 	GLuint m_vao;
 	int m_width;
 	int m_height;

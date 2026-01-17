@@ -94,6 +94,7 @@
     "AddressOut = \"127.0.0.1\"\n"
     "\n"
     "; PonMi\n"
+    "ScanlineStrength = \"0.65\"\n"
     "Title = \"Supermodel\"\n"
     "true-ar = \"false\"\n"
     "InputUIPause = \"KEY_LEFTALT+KEY_P\"\n"

@@ -1,12 +1,11 @@
 #include "SuperAA.h"
 #include <string>
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength, int totalYRes) :
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength) :
     m_aa(aaValue),
     m_crtcolors(CRTcolors),
     m_scanlineEnable(true),
     m_scanlineStrength(scanlineStrength),
-    m_totalYRes(totalYRes),
     m_vao(0),
     m_width(0),
     m_height(0)
@@ -52,12 +51,6 @@ void main(void)
     	std::string scString = "const float SCANLINE_STRENGTH = ";
 		scString += std::to_string(m_scanlineStrength);
 		scString += ";\n";
-    	
-    	std::string uhString = "const int uScreenHeight = ";
-		uhString += std::to_string(m_totalYRes);
-		uhString += ";\n";
-    	
-    	//printf("Scanline strength = %2d\n", m_totalYRes);
 
         // =========================
         // Fragment Shader body                              uniform float scanlineStrength;
@@ -68,10 +61,6 @@ uniform sampler2D tex1;
 uniform bool scanlineEnable;
 uniform float scanlineStrength;
 out vec4 fragColor;
-
-const float SCANLINE_COUNT = 480.0;
-const float SCANLINE_DARK  = 0.75;   // 暗くしたい強度（0.7〜0.85 推奨）  	
-
 
 // ===== CRT gamma =====
 #if (CRTCOLORS == 0)
@@ -151,8 +140,6 @@ vec3 GetTextureValue(sampler2D s)
 
 void main()
 {
-	vec2 texSize = vec2(textureSize(tex1, 0));
-    vec2 uv = gl_FragCoord.xy / texSize;
     vec3 color = GetTextureValue(tex1);
 
 #if (CRTCOLORS != 0)
@@ -167,34 +154,17 @@ void main()
 #endif
 
     // ===== Scanline (AA independent) =====
-    if (scanlineEnable)
-    {
-		const float CRT_LINES = 480.0;
-
-		// 1走査線あたりのピクセル数（整数化）
-		float pixelsPerLine = round(uScreenHeight / CRT_LINES);
-
-		// 安全策（最低1px）
-		pixelsPerLine = max(pixelsPerLine, 1.0);
-
-		// 何本目の走査線か
-		float lineIndex = floor(gl_FragCoord.y / pixelsPerLine);
-
-		// 走査線内の位置（0〜1）
-		float sub = fract(gl_FragCoord.y / pixelsPerLine);
-
-		// 中央を暗くするマスク
-		// 偶数ラインだけ暗く
-		float mask = mod(lineIndex, 2.0);
-
-		// 適用
+	if (scanlineEnable)
+	{
+		float scan = mod(floor(gl_FragCoord.y), 2.0);
+		float mask = step(0.5, scan);
 		color *= mix(SCANLINE_STRENGTH, 1.0, mask);
-    }
+	}
     fragColor = vec4(color, 1.0);
 }
 )glsl";
 
-        std::string fs = fragmentShaderVersion + aaString + ccString + scString + uhString + fragmentShader;
+        std::string fs = fragmentShaderVersion + aaString + ccString + scString + fragmentShader;
 
         // =========================
         // Shader load
@@ -297,7 +267,7 @@ void SuperAA::ToggleScanline()
             m_scanlineStrength
         );*/
     }
-	//printf("Scanline strength = %.2f\n", m_scanlineStrength);
+	printf("Scanline strength = %.2f\n", m_scanlineStrength);
     m_shader.DisableShader();
 }
 
