@@ -21,6 +21,8 @@ public:
     static void Reset();
     static void Tick();              // ★ 再生フレームを進める
     static uint32_t GetFrame();       // ★ replayFrame を返す
+	static void UpdateState(uint32_t emuFrame);
+    static int GetInputValue(const char* id);
 
 private:
     static FILE*    s_fp;

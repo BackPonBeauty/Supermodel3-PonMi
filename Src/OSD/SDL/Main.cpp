@@ -145,6 +145,7 @@ float BarrelStrength = 0.01f;
 bool replayRequested = false;
 bool replayStarted   = false;
 std::string replayFile;
+static bool lastLoadStatePressed = false;
 /*
  * Crosshair stuff
  */
@@ -1070,6 +1071,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
 #endif
   while (!quit)
   {
+  	bool currentLoadStatePressed = Inputs->uiLoadState->Pressed();
     if (replayRequested && !replayStarted)
     {
     	ReplayPlayer::Start(replayFile.c_str());
@@ -1229,7 +1231,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       s_saveSlot %= 10; // clamp to [0,9]
       printf("Save slot: %d\n", s_saveSlot);
     }
-    else if (Inputs->uiLoadState->Pressed())
+    else if (currentLoadStatePressed && !lastLoadStatePressed)
     {
       if (!paused)
       {
@@ -1354,7 +1356,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       }
     }
 #endif // SUPERMODEL_DEBUGGER
-
+	lastLoadStatePressed = currentLoadStatePressed;
     // Refresh rate (frame limiting)
     if (paused || s_runtime_config["Throttle"].ValueAs<bool>())
     {

@@ -162,6 +162,35 @@ void ReplayPlayer::ProcessEvents(uint32_t emuFrame, std::vector<ReplayEvent>& ou
         outEvents.push_back(ev);
     }
 }
+
+// 特定の入力 ID の現在の値を返す
+int ReplayPlayer::GetInputValue(const char* id)
+{
+    auto it = s_inputState.find(id);
+    if (it != s_inputState.end()) {
+        return it->second;
+    }
+    return 0; // 記録がなければ 0
+}
+
+// vector へのコピーをやめ、状態更新だけに特化させる
+void ReplayPlayer::UpdateState(uint32_t emuFrame)
+{
+    // cursor が末尾に達するまで、そのフレームのイベントをすべて map に流し込む
+    // emuFrame が 100 なら、100番のイベントを全部拾う
+    while (s_cursor < s_events.size() && s_events[s_cursor].frame == emuFrame)
+    {
+        const ReplayEvent& ev = s_events[s_cursor];
+        s_inputState[ev.id] = ev.value;
+        s_cursor++;
+    }
+
+    // 全イベントを読み終えたら終了
+    if (s_cursor >= s_events.size()) 
+    {
+        Stop();
+    }
+}
 /*
 void ReplayPlayer::ProcessEvents(uint32_t emuFrame, std::vector<ReplayEvent>& outEvents)
 {

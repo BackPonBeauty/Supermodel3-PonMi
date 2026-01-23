@@ -150,31 +150,29 @@ void main()
 {
     vec2 uv = vTexCoord;
 	
-	
-	//if (barrelEffectEnable != 0)
-	//{
-		float strength = BARREL_STRENGTH;
-    	float aspect = 1.33;  // アスペクト比も仮固定 (4:3)
-    	if (uAspect > 0.0) aspect = uAspect; // もしC++から来ていれば使う
+	//float strength = 0.01; // かなり強い歪み
+    float aspect = 1.33;  // アスペクト比も仮固定 (4:3)
+    if (uAspect > 0.0) aspect = uAspect; // もしC++から来ていれば使う
 
-    	// ===== 歪み計算 =====
-    	vec2 c = uv * 2.0 - 1.0; // [0,1] -> [-1,1]
-    	c.x *= aspect;           // アスペクト比考慮
+    // ===== 歪み計算 =====
+    vec2 c = uv * 2.0 - 1.0; // [0,1] -> [-1,1]
+    c.x *= aspect;           // アスペクト比考慮
 
-    	float r2 = dot(c, c);    // 中心からの距離の2乗
-    	c *= (1.0 + BARREL_STRENGTH * r2); // 歪ませる
+    float r2 = dot(c, c);    // 中心からの距離の2乗
+    c *= (1.0 + BARREL_STRENGTH * r2); // 歪ませる
 
-    	c.x /= aspect;           // アスペクト比戻す
-    	uv = (c + 1.0) * 0.5;    // [-1,1] -> [0,1]
+    c.x /= aspect;           // アスペクト比戻す
+    uv = (c + 1.0) * 0.5;    // [-1,1] -> [0,1]
 
-    	// ===== デバッグ：範囲外を赤くする =====
-    	// これで「赤い枠」が見えれば、歪み計算は成功しています。
-    	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        	fragColor = vec4(0.0, 0.0, 0.0, 1.0); // 赤
-        	return;
-    	}
-	//}
+    // ===== デバッグ：範囲外を赤くする =====
+    // これで「赤い枠」が見えれば、歪み計算は成功しています。
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        fragColor = vec4(0.0, 0.0, 0.0, 1.0); // 赤
+        return;
+    }
+
     // ===== Fetch =====
+
     vec3 color = texture(tex1, uv).rgb;
 	
 	
@@ -268,7 +266,7 @@ void SuperAA::Draw()
 		
 	
 		
-		
+	
 	
     // 初期化されていない、またはサイズが無効な場合は描画しない
     if (m_width <= 0 || m_height <= 0) return;
@@ -287,9 +285,7 @@ void SuperAA::Draw()
     {
         glUniform1i(m_shader.attribLocMap["tex1"], 0);
     }
-		
-		
-		
+			
 	//glUniform1i(m_shader.attribLocMap["barrelEffectEnable"],m_barrelEffectEnable ? 1 : 0);
 		
 		

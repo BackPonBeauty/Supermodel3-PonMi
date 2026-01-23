@@ -78,10 +78,13 @@ void ReplayRecorder::Capture(uint32_t frame, const char* id, int value)
         return;
 
     ReplayEvent ev{};
-    ev.frame    = frame + 1;
-    strncpy(ev.id, id, sizeof(ev.id));
-    ev.id[sizeof(ev.id)] = '\0';
-    ev.value    = value;
+    ev.frame = frame + 1;
+    
+    // 安全なコピー（32バイトのバッファなら、最大31文字 + 終端ヌル）
+    strncpy(ev.id, id, sizeof(ev.id) - 1);
+    ev.id[sizeof(ev.id) - 1] = '\0'; 
+    
+    ev.value = value;
 
     fwrite(&ev, sizeof(ev), 1, g_fp);
 }

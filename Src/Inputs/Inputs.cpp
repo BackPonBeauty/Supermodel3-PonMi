@@ -855,53 +855,97 @@ bool CInputs::Poll(const Game* game,
     return true;
 }
 */
-bool CInputs::Poll(const Game* game,
-                   unsigned dispX, unsigned dispY,
-                   unsigned dispW, unsigned dispH)
+bool CInputs::Poll(const Game* game, unsigned dispX, unsigned dispY, unsigned dispW, unsigned dispH)
 {
-    // Supermodel 側
+    static int xButtonCooldown = 0;
+    static int xButtonPrev = 0; // ★追加：前回のボタン状態を保存
+
     m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
-    if (!m_system->Poll())
-        return false;
-
-    uint32_t gameFlags = game ? game->inputs : Game::INPUT_ALL;
-
-    // ===== ① フレーム先頭：replay は1回だけ =====
-    if (ReplayPlayer::IsPlaying())
-    {
-        ReplayPlayer::ProcessEvents(g_frameCounter, replayEvents);
+    if (!m_system->Poll()) return false;
+    
+    if (xButtonCooldown > 0) {
+        xButtonCooldown--;
     }
 
-    // ===== ② 入力適用 =====
-    for (auto& it : m_inputs)
+    // --- 開始時のカウンタリセット ---
+    static bool s_wasPlaying = false;
+    static bool s_wasRecording = false;
+
+    if (ReplayPlayer::IsPlaying() && !s_wasPlaying) {
+        g_frameCounter = 0;
+        s_wasPlaying = true;
+    }
+    if (!ReplayPlayer::IsPlaying()) s_wasPlaying = false;
+
+    if (ReplayRecorder::IsRecording() && !s_wasRecording) {
+        g_frameCounter = 0;
+        s_wasRecording = true;
+    }
+    if (!ReplayRecorder::IsRecording()) s_wasRecording = false;
+
+    // --- ① 再生処理 ---
+    if (ReplayPlayer::IsPlaying()) 
+    {
+        ReplayPlayer::UpdateState(g_frameCounter);
+    }
+
+    for (auto& it : m_inputs) 
     {
         CInput* in = it.get();
-		//printf(" %s = %s value = %d \n", in->id, in->GetMapping(), in->value);
-            // ★ UI入力は常に Poll
-    	if (in->IsUIInput())
-    	{
-        	in->Poll();
-        	continue;
-    	}
 
-        if (ReplayPlayer::IsPlaying())
+        if (ReplayPlayer::IsPlaying()) 
         {
-            // ★ replay 状態を適用
-            ApplyReplayInput(in, replayEvents);
-        }
-        else
+            in->value = ReplayPlayer::GetInputValue(in->id);
+        	if (strcmp(in->id, "Exit UI") == 0 || in->IsUIInput()) 
+        	{
+            // 生のデバイス状態を読み取って上書き
+            // これにより、再生中でも Esc キーなどで終了できるようになります
+            	in->Poll(); 
+        	}
+        } 
+        else 
         {
-            // ★ 通常入力
-            ApplyLiveInput(in);
+            in->Poll();
+            
+            // ★ Xボタン (Load State) の連打・押しっぱなし防止
+            if (strcmp(in->id, "Load State") == 0) 
+            {
+                int currentVal = in->value; // 今の生の状態
+
+                // 条件：今押されている(>0) かつ 前回は離されていた(==0) かつ クールタイム終了
+                if (currentVal > 0 && xButtonPrev == 0 && xButtonCooldown == 0) 
+                {
+                    // この 1 フレームだけ入力を許可（in->value はそのまま）
+                    xButtonCooldown = 60; // 余裕を持って 1秒(60F) ガード
+                }
+                else 
+                {
+                    // それ以外（押しっぱなし中やガード中）は 0 に書き換えて無効化
+                    in->value = 0;
+                }
+
+                // 今回の状態を保存
+                xButtonPrev = currentVal;
+            }
+
+            if (ReplayRecorder::IsRecording()) 
+            {
+                ReplayRecorder::Capture(g_frameCounter, in->id, in->value);
+            }
         }
     }
-	
+
     g_frameCounter++;
     return true;
 }
 void ApplyReplayInput(CInput* in,
                       const std::vector<ReplayEvent>& replayEvents)
 {
+	/*
+	if (ReplayPlayer::GetState().count(in->id)) {
+        in->value = ReplayPlayer::GetState()[in->id];
+    }
+	/*
     for (const auto& ev : replayEvents)
     {
         if (strcmp(in->id, ev.id) == 0)
@@ -910,9 +954,9 @@ void ApplyReplayInput(CInput* in,
             return;
         }
     }
-
+	*/
     // 見つからなかったら 0（押されていない）
-    in->value = 0;
+    //in->value = 0;
 }
 void ApplyLiveInput(CInput* in)
 {
