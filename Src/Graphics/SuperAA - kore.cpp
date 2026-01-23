@@ -2,13 +2,13 @@
 #include <string>
 #include <algorithm> // for std::max
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength, int totalYRes, float ubarrelStrength) :
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength, int totalYRes) :
     m_aa(aaValue),
     m_crtcolors(CRTcolors),
     m_scanlineEnable(true),
     m_scanlineStrength(scanlineStrength),
     m_barrelEffectEnable(true),
-    m_barrelStrength(ubarrelStrength),
+    m_barrelStrength(0.01f),
     m_totalYRes(totalYRes),
     m_vao(0),
     m_width(0),
@@ -78,7 +78,7 @@ uniform int scanlineEnable;
 uniform float scanlineStrength; // 定数ではなくUniformを使用
 uniform int barrelEffectEnable;
 uniform float uAspect;          // width / height
-uniform float BarrelStrength;  // 0.0 = OFF
+uniform float uBarrelStrength;  // 0.0 = OFF
 out vec4 fragColor;
 
 const float SCANLINE_COUNT = 480.0; // 必要に応じて uScreenHeight / 2.0 などに
@@ -151,29 +151,31 @@ void main()
     vec2 uv = vTexCoord;
 	
 	
-	//if (barrelEffectEnable != 0)
-	//{
-		float strength = BARREL_STRENGTH;
-    	float aspect = 1.33;  // アスペクト比も仮固定 (4:3)
-    	if (uAspect > 0.0) aspect = uAspect; // もしC++から来ていれば使う
 
-    	// ===== 歪み計算 =====
-    	vec2 c = uv * 2.0 - 1.0; // [0,1] -> [-1,1]
-    	c.x *= aspect;           // アスペクト比考慮
+    // ★★★ 強制デバッグ設定 ★★★
+    // C++からの値を無視して、ここで直接強さを指定します。
+    // これで歪まなければシェーダーの計算式自体が走っていません。
+    float strength = BARREL_STRENGTH; // かなり強い歪み
+    float aspect = 1.33;  // アスペクト比も仮固定 (4:3)
+    if (uAspect > 0.0) aspect = uAspect; // もしC++から来ていれば使う
 
-    	float r2 = dot(c, c);    // 中心からの距離の2乗
-    	c *= (1.0 + BARREL_STRENGTH * r2); // 歪ませる
+    // ===== 歪み計算 =====
+    vec2 c = uv * 2.0 - 1.0; // [0,1] -> [-1,1]
+    c.x *= aspect;           // アスペクト比考慮
 
-    	c.x /= aspect;           // アスペクト比戻す
-    	uv = (c + 1.0) * 0.5;    // [-1,1] -> [0,1]
+    float r2 = dot(c, c);    // 中心からの距離の2乗
+    c *= (1.0 + BARREL_STRENGTH * r2); // 歪ませる
 
-    	// ===== デバッグ：範囲外を赤くする =====
-    	// これで「赤い枠」が見えれば、歪み計算は成功しています。
-    	if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        	fragColor = vec4(0.0, 0.0, 0.0, 1.0); // 赤
-        	return;
-    	}
-	//}
+    c.x /= aspect;           // アスペクト比戻す
+    uv = (c + 1.0) * 0.5;    // [-1,1] -> [0,1]
+
+    // ===== デバッグ：範囲外を赤くする =====
+    // これで「赤い枠」が見えれば、歪み計算は成功しています。
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        fragColor = vec4(1.0, 0.0, 0.0, 1.0); // 赤
+        return;
+    }
+
     // ===== Fetch =====
     vec3 color = texture(tex1, uv).rgb;
 	
@@ -214,7 +216,7 @@ void main()
     m_shader.LoadShaders(vertexShader, fs.c_str());
     m_shader.GetUniformLocationMap("tex1");
 	m_shader.GetUniformLocationMap("barrelEffectEnable");
-	m_shader.GetUniformLocationMap("BarrelStrength");
+	m_shader.GetUniformLocationMap("uBarrelStrength");
     m_shader.GetUniformLocationMap("scanlineEnable");
 	m_shader.GetUniformLocationMap("scanlineStrength");
     m_shader.GetUniformLocationMap("uAspect");
@@ -287,31 +289,26 @@ void SuperAA::Draw()
     {
         glUniform1i(m_shader.attribLocMap["tex1"], 0);
     }
-		
-		
-		
-	//glUniform1i(m_shader.attribLocMap["barrelEffectEnable"],m_barrelEffectEnable ? 1 : 0);
-		
-		
-    glUniform1i(m_shader.attribLocMap["scanlineEnable"],m_scanlineEnable ? 1 : 0);
-/*
-    if (m_barrelEffectEnable)
-	{
-		glUniform1f(m_shader.attribLocMap["BarrelStrength"],m_barrelStrength);
-	}
-	else
-	{
-		glUniform1f(m_shader.attribLocMap["BarrelStrength"],0.0f);
-	}
-*/
+	   // ★ ここが重要 ★
+    // ★ これが無い限り一生トグルしない
+    glUniform1i(
+        m_shader.attribLocMap["scanlineEnable"],
+        m_scanlineEnable ? 1 : 0
+    );
+
+    glUniform1f(
+        m_shader.attribLocMap["scanlineStrength"],
+        m_scanlineStrength
+    );
+
 	
 	// Aspect / Barrel（今はデバッグ固定でもOK）
     if (m_shader.attribLocMap["uAspect"] >= 0)
         glUniform1f(m_shader.attribLocMap["uAspect"],
                     float(m_width) / float(m_height));
 
-    //if (m_shader.attribLocMap["BarrelStrength"] >= 0)
-        //glUniform1f(m_shader.attribLocMap["BarrelStrength"], 0.01f);
+    if (m_shader.attribLocMap["uBarrelStrength"] >= 0)
+        glUniform1f(m_shader.attribLocMap["uBarrelStrength"], 0.01f);
 	
     glBindVertexArray(m_vao);
     glViewport(0, 0, m_width, m_height);
@@ -327,6 +324,21 @@ void SuperAA::Draw()
 void SuperAA::ToggleScanline()
 {
     m_scanlineEnable = !m_scanlineEnable;
+    /*
+	m_shader.EnableShader();
+    if (m_shader.attribLocMap["scanlineEnable"] >= 0)
+    {
+        glUniform1i(
+            m_shader.attribLocMap["scanlineEnable"],
+            m_scanlineEnable ? 1 : 0
+        );
+    	glUniform1f(
+            m_shader.attribLocMap["scanlineStrength"],
+    		m_scanlineStrength
+    	);
+    }
+	
+    m_shader.DisableShader();*/
 	printf("[SuperAA] Scanline %s\n", m_scanlineEnable ? "ON" : "OFF");
 	
 }
@@ -334,14 +346,8 @@ void SuperAA::ToggleBarrelEffect()
 {
 	m_barrelEffectEnable = !m_barrelEffectEnable;
 	printf("[SuperAA] barrelEffect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
-	
 }
 
-//float SuperAA::BarrelStrength()
-//{
-//	m_barrelStrength = ubarrelStrength;
-//}
-/*
 void SuperAA::SetScanlineEnable(bool enable)
 {
     //m_scanlineEnable = true;
@@ -351,7 +357,7 @@ bool SuperAA::IsScanlineEnabled() const
 {
     return m_scanlineEnable;
 }
-*/
+
 // =========================
 // Target FBO
 // =========================

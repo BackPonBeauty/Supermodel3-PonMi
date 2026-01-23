@@ -13,7 +13,7 @@
 class SuperAA
 {
 public:
-	SuperAA(int aaValue, CRTcolor CRTcolors , float scanlineStrength , int totalYRes);
+	SuperAA(int aaValue, CRTcolor CRTcolors , float scanlineStrength , int totalYRes , float barrelStrength);
 	~SuperAA();
 
 	void Init(int width, int height);		// width & height are real window dimensions
@@ -23,7 +23,9 @@ public:
 	GLint m_locScanlineEnable = -1;
 	GLint m_locScanlineStrength = -1;
 	void ToggleScanline();
-    void SetScanlineEnable(bool enable);
+	float BarrelStrength();
+	void ToggleBarrelEffect();
+    void SetScanlineEnable(bool False);
     bool IsScanlineEnabled() const;
 
 private:
@@ -33,6 +35,8 @@ private:
 	const CRTcolor m_crtcolors;
 	bool m_scanlineEnable;
 	float m_scanlineStrength;
+	bool m_barrelEffectEnable;
+	float m_barrelStrength;
 	int m_totalYRes;
 	GLuint m_vao;
 	int m_width;

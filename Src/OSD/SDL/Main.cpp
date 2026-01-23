@@ -103,6 +103,9 @@
 #include "Crosshair.h"
 #include "OSD/DefaultConfigFile.h"
 #include "Gui.h"
+#include "Inputs/ReplayRecorder.h"
+#include "Inputs/ReplayPlayer.h"
+#include <cstdlib>
 
 
 /******************************************************************************
@@ -138,6 +141,10 @@ static const char*  title;              // title
 static float  xAr = 496.0, yAr = 384.0;                 // AspectRatio 496*384 or 512*384)
 static CRTcolor CRTcolors = CRTcolor::None; // default to no gamma/color adaption being done
 float scanlineStrength = 0.85f;
+float BarrelStrength = 0.01f;
+bool replayRequested = false;
+bool replayStarted   = false;
+std::string replayFile;
 /*
  * Crosshair stuff
  */
@@ -1012,7 +1019,8 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   
   // Initialize the renderers
   scanlineStrength = s_runtime_config["ScanlineStrength"].ValueAs<float>();
-  SuperAA* superAA = new SuperAA(aaValue, CRTcolors, scanlineStrength , totalYRes);
+  BarrelStrength = s_runtime_config["BarrelStrength"].ValueAs<float>();
+  SuperAA* superAA = new SuperAA(aaValue, CRTcolors, scanlineStrength , totalYRes , BarrelStrength);
   superAA->Init(totalXRes, totalYRes);  // pass actual frame sizes here
   CRender2D *Render2D = new CRender2D(s_runtime_config);
   IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *) new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *) new Legacy3D::CLegacy3D(s_runtime_config));
@@ -1055,13 +1063,20 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
     TestPolygonHeaderBits(Model3);
     quit = true;
   }
+	
+
+	
+	
 #endif
   while (!quit)
   {
-    // Poll the inputs
-    if (!Inputs->Poll(&game, xOffset, yOffset, xRes, yRes))
-      quit = true;
-
+    if (replayRequested && !replayStarted)
+    {
+    	ReplayPlayer::Start(replayFile.c_str());
+    	replayStarted = true;
+	}
+  
+  	Inputs->Poll(&game, xOffset, yOffset, xRes, yRes);
     // Render if paused, otherwise run a frame
     if (paused)
       Model3->RenderFrame();
@@ -1091,14 +1106,26 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
 #endif // SUPERMODEL_DEBUGGER
 
     // Check UI controls
-    if (Inputs->uiExit->Pressed())
-    {
-      // Quit emulator
-      quit = true;
-    }
-    if (Inputs->uiToggleScanline->Pressed())
+	if (Inputs->uiExit->Pressed())
+	{
+    	if (ReplayPlayer::IsPlaying())
+    	{
+        	printf("[Replay] UIExit -> stop replay\n");
+        	ReplayPlayer::Stop();
+    	}
+    	else
+    	{
+        	// Quit emulator
+        	quit = true;
+    	}
+	}	
+    else if (Inputs->uiToggleScanline->Pressed())
     {
       superAA->ToggleScanline();
+    }
+    else if (Inputs->uiBarrelEffect->Pressed())
+    {
+      superAA->ToggleBarrelEffect();
     }
     else if (Inputs->uiReset->Pressed())
     {
@@ -1941,6 +1968,10 @@ struct ParsedCommandLine
   bool print_inputs = false;
   bool disable_debugger = false;
   bool enter_debugger = false;
+  // ★ 追加
+  bool record = false;
+  std::string record_file;
+  std::string replay_play_file;
 #ifdef DEBUG
   std::string gfx_state;
 #endif
@@ -2185,6 +2216,57 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
               }
           }
       }
+      else if (arg == "-record" || arg.find("-record=") == 0)
+{
+  std::string filename;
+
+  if (arg == "-record")
+  {
+    if (i + 1 >= argc)
+    {
+      ErrorLog("'-record' requires a file name.");
+      cmd_line.error = true;
+    }
+    else
+    {
+      filename = argv[++i];
+    }
+  }
+  else
+  {
+    // -record=foo.rec
+    filename = arg.substr(strlen("-record="));
+    if (filename.empty())
+    {
+      ErrorLog("'-record' requires a file name.");
+      cmd_line.error = true;
+    }
+  }
+
+  if (!filename.empty())
+  {
+    cmd_line.record = true;
+    cmd_line.record_file = filename;
+  }
+}
+    else if (arg == "-play" || arg.find("-play=") == 0)
+{
+    std::vector<std::string> parts = Util::Format(arg).Split('=');
+    if (parts.size() == 2)
+    {
+        cmd_line.replay_play_file = parts[1];
+    }
+    else if (i + 1 < argc)
+    {
+        cmd_line.replay_play_file = argv[++i];
+    }
+    else
+    {
+        ErrorLog("'-play' requires a replay file.");
+        cmd_line.error = true;
+    }
+}
+
       else if (arg == "-true-hz")
         cmd_line.config.Set("RefreshRate", 57.524f);
       else if (arg == "-true-ar")
@@ -2233,6 +2315,8 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
  */
 int main(int argc, char **argv)
 {
+  atexit(ReplayRecorder::Stop);
+
   Title();
   WriteDefaultConfigurationFileIfNotPresent();
 
@@ -2294,6 +2378,11 @@ int main(int argc, char **argv)
     PrintGLInfo(true, false, false);
     return 0;
   }
+// ★ 録画開始トリガー
+if (cmd_line.record)
+{
+  ReplayRecorder::Start(cmd_line.record_file.c_str());
+}
 
 #ifdef DEBUG
   s_gfxStatePath.assign(cmd_line.gfx_state);
@@ -2413,6 +2502,12 @@ int main(int argc, char **argv)
     ErrorLog("Unable to initalize inputs.\n");
     exitCode = 1;
     goto Exit;
+  }
+  if (!cmd_line.replay_play_file.empty())
+  {
+    InfoLog("Replay play: %s", cmd_line.replay_play_file.c_str());
+    replayRequested = true;
+    replayFile = cmd_line.replay_play_file;
   }
 
   // NOTE: fileConfig is passed so that the global section is used for input settings

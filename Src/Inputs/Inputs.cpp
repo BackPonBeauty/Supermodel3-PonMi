@@ -33,11 +33,40 @@
 #include "InputSystem.h"
 #include "InputTypes.h"
 #include "Game.h"
+#include "ReplayRecorder.h"
+#include "ReplayPlayer.h"
 #include <cstdarg>
 #include <vector>
 #include <string>
 #include <iostream>
+#include <unordered_map>
+#include <cstdio>
+
+
+std::unordered_map<CInput*, int> m_prevState;
+
+
+#pragma pack(push, 1)
+
+struct ReplayEvent
+{
+    uint32_t frame;
+    char     id[32];
+    int32_t  value;
+};
+#pragma pack(pop)
+static std::vector<ReplayEvent> replayEvents;
 using namespace std;
+
+uint32_t g_frameCounter = 0;
+uint32_t lastEmuFrame = 0;
+
+static void ApplyReplayInput(
+    CInput* in,
+    const std::vector<ReplayEvent>& replayEvents);
+
+static void ApplyLiveInput(CInput* in);
+
 
 CInputs::CInputs(std::shared_ptr<CInputSystem> system)
   : m_system(system)
@@ -46,7 +75,8 @@ CInputs::CInputs(std::shared_ptr<CInputSystem> system)
 	// the config file.
 
 	// UI Controls
-	uiToggleScanline   = AddSwitchInput("UIScanline",         "Toggle Scanline",       Game::INPUT_COMMON, "KEY_F4");
+	uiToggleScanline   = AddSwitchInput("UIScanline",         "Toggle Scanline",       Game::INPUT_UI, "KEY_F4");
+	uiBarrelEffect     = AddSwitchInput("UIBarrelEffect",     "BarrelEffect",          Game::INPUT_UI, "KEY_F3");
 	uiExit             = AddSwitchInput("UIExit",             "Exit UI",               Game::INPUT_UI, "KEY_ESCAPE");
 	uiReset            = AddSwitchInput("UIReset",            "Reset",                 Game::INPUT_UI, "KEY_ALT+KEY_R");
 	uiPause            = AddSwitchInput("UIPause",            "Pause",                 Game::INPUT_COMMON, "KEY_ALT+KEY_P");
@@ -757,27 +787,177 @@ void CInputs::PrintInputs(const Game *game)
 
 	puts("");
 }
-
-bool CInputs::Poll(const Game *game, unsigned dispX, unsigned dispY, unsigned dispW, unsigned dispH)
+/*
+bool CInputs::Poll(const Game* game,
+                   unsigned dispX, unsigned dispY,
+                   unsigned dispW, unsigned dispH)
 {
-	// Update the input system with the current display geometry
-	m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
+    // Replay 再生中なら、毎フレーム必ず Update を先に呼ぶ
+    if (ReplayPlayer::IsPlaying())
+    {
+        ReplayPlayer::Update(g_frameCounter);
+    }
 
-	// Poll the input system
-	if (!m_system->Poll())
-		return false;
+    // Supermodel の表示座標セット
+    m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
 
-	// Poll all UI inputs and all the inputs used by the current game, or all inputs if game is NULL
-	uint32_t gameFlags = game ? game->inputs : Game::INPUT_ALL;
-	for (auto it = m_inputs.begin(); it != m_inputs.end(); ++it)
-	{
-		if ((*it)->IsUIInput() || ((*it)->gameFlags & gameFlags))
-			(*it)->Poll();
-	}
+    // SDL / OSD 入力の更新
+    if (!m_system->Poll())
+        return false;
 
+    uint32_t gameFlags = game ? game->inputs : Game::INPUT_ALL;
+
+    for (auto& it : m_inputs)
+    {
+        if (!(it->IsUIInput() || (it->gameFlags & gameFlags)))
+            continue;
+
+        CInput* in = it.get();
+
+        int prev = m_prevState[in];   // 前フレーム値
+        int now  = 0;
+
+        if (ReplayPlayer::IsPlaying())
+        {
+            // ★ Replay の値があれば now に値を入れる
+            if (ReplayPlayer::GetValue(reinterpret_cast<uint64_t>(in), now))
+            {
+                in->value = now;   // ★ 実際に値を入れるのはここ
+            }
+            else
+            {
+                // Replay にデータが無い場合は 0（離す）
+                in->value = 0;
+            }
+        }
+        else
+        {
+            // 通常プレイ：実際の入力を読む
+            in->Poll();
+            now = in->value;
+        }
+
+        // ★ 録画：Replay 再生中は絶対に記録しない
+        if (!ReplayPlayer::IsPlaying() &&
+            ReplayRecorder::IsRecording() &&
+            prev != now)
+        {
+            printf("[Recorder] frame=%u in=%p prev=%d now=%d\n",
+                   g_frameCounter, in, prev, now);
+
+            ReplayRecorder::Capture(g_frameCounter, in);
+        }
+
+        m_prevState[in] = now;
+    }
+
+    g_frameCounter++;
     return true;
 }
+*/
+bool CInputs::Poll(const Game* game,
+                   unsigned dispX, unsigned dispY,
+                   unsigned dispW, unsigned dispH)
+{
+    // Supermodel 側
+    m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
+    if (!m_system->Poll())
+        return false;
 
+    uint32_t gameFlags = game ? game->inputs : Game::INPUT_ALL;
+
+    // ===== ① フレーム先頭：replay は1回だけ =====
+    if (ReplayPlayer::IsPlaying())
+    {
+        ReplayPlayer::ProcessEvents(g_frameCounter, replayEvents);
+    }
+
+    // ===== ② 入力適用 =====
+    for (auto& it : m_inputs)
+    {
+        CInput* in = it.get();
+		//printf(" %s = %s value = %d \n", in->id, in->GetMapping(), in->value);
+            // ★ UI入力は常に Poll
+    	if (in->IsUIInput())
+    	{
+        	in->Poll();
+        	continue;
+    	}
+
+        if (ReplayPlayer::IsPlaying())
+        {
+            // ★ replay 状態を適用
+            ApplyReplayInput(in, replayEvents);
+        }
+        else
+        {
+            // ★ 通常入力
+            ApplyLiveInput(in);
+        }
+    }
+	
+    g_frameCounter++;
+    return true;
+}
+void ApplyReplayInput(CInput* in,
+                      const std::vector<ReplayEvent>& replayEvents)
+{
+    for (const auto& ev : replayEvents)
+    {
+        if (strcmp(in->id, ev.id) == 0)
+        {
+            in->value = ev.value;
+            return;
+        }
+    }
+
+    // 見つからなかったら 0（押されていない）
+    in->value = 0;
+}
+void ApplyLiveInput(CInput* in)
+{
+    int prev = in->value;
+    in->Poll();
+    int now = in->value;
+
+    if (ReplayRecorder::IsRecording() && prev != now)
+    {
+        ReplayRecorder::Capture(g_frameCounter,
+                                in->id,
+                                now);
+    }
+}
+/*
+// Replay 開始時に1回だけ呼ぶ
+void BuildReplayInputMap(const std::vector<std::unique_ptr<CInput>>& inputs)
+{
+    g_replayInputMap.clear();
+
+    for (auto& it : inputs)
+    {
+        CInput* in = it.get();
+        if (!in)
+            continue;
+
+        uint64_t id = HashMapping(in->GetMapping());
+        g_replayInputMap[id] = in;
+    }
+
+    printf("[Replay] InputMap built (%zu inputs)\n",
+           g_replayInputMap.size());
+}
+
+// ReplayPlayer から呼ばれる
+void ApplyReplayInput(uint64_t input_id, int value)
+{
+    auto it = g_replayInputMap.find(input_id);
+    if (it == g_replayInputMap.end())
+        return;
+
+    CInput* in = it->second;
+    in->value = value;
+}
+*/
 void CInputs::DumpState(const Game *game)
 {
 	// Print header

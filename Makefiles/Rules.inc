@@ -157,6 +157,8 @@ SRC_FILES = \
 	Src/Inputs/InputSystem.cpp \
 	Src/Inputs/InputTypes.cpp \
 	Src/Inputs/MultiInputSource.cpp \
+	Src/Inputs/ReplayRecorder.cpp \
+	Src/Inputs/ReplayPlayer.cpp \
 	Src/OSD/SDL/SDLInputSystem.cpp \
 	Src/OSD/SDL/Crosshair.cpp \
 	Src/OSD/Outputs.cpp \

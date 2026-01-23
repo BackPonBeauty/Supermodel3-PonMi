@@ -84,9 +84,12 @@ private:
 
   void PrintConfigureInputsHelp();
 
+
+
 public:
   // UI controls
   std::shared_ptr<CSwitchInput> uiToggleScanline;
+  std::shared_ptr<CSwitchInput> uiBarrelEffect;
   std::shared_ptr<CSwitchInput> uiExit;
   std::shared_ptr<CSwitchInput> uiReset;
   std::shared_ptr<CSwitchInput> uiPause;
