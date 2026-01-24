@@ -1,114 +1,107 @@
-# Supermodel: A Sega Model 3 Arcade Emulator
-*Copyright 2003-2024 The Supermodel Team*
+---
 
-## Overview
+# Supermodel-PonMi
 
-[Supermodel](https://supermodel3.com) emulates Sega's Model 3 arcade platform, allowing you to relive state-of-the-art 3D arcade gaming as it existed from 1996 through 1999. It uses OpenGL, [SDL2](https://libsdl.org), and can run on Windows, Linux, and macOS. It also supports network play on low-latency network connections. The source code is freely available under the terms of the [GNU General Public License](http://www.gnu.org/copyleft/gpl.html).
+This project is a **fork of the [original Supermodel3](https://github.com/trzy/Supermodel),** the legendary Sega Model 3 emulator.
 
-<p align="center">
-  <img src="Docs/Images/Daytona2_1.gif" width="375" height="250" /> <img src="Docs/Images/LAMachin.gif" width="375" height="250" />
-  <img src="Docs/Images/StarWars.gif" width="375" height="250" /> <img src="Docs/Images/FVipers2.gif" width="375" height="250" />
-</p>
+## 🙏 Acknowledgments
 
-<img src="Docs/Images/Real3D_Logo.png" align="right" height="100"> Model 3 first made its debut in 1996 with Virtua Fighter 3 and Scud Race, and for the subsequent three years boasted the most powerful 3D hardware of any gaming platform. Developed by Real3D, then a Lockheed Martin company, and with a heritage rooted in advanced flight simulator technology, Model 3 featured capabilities that would not appear on PCs for several years. Using an on-board scene graph and geometry processor, it could store, transform, light, and rasterize tens of thousands of polygons per frame at a fluid 57.524 frames per second.
+First and foremost, I would like to express my deepest gratitude to **Bart Trzynadlowski, Nikolas Nikas**, and the entire **Supermodel development team**. Their incredible work in documenting and emulating the complex Sega Model 3 hardware has made this project possible. This fork is built upon their solid foundation, with my own experimental features added to enhance the "Arcade Experience."
 
-The aim of the Supermodel project is to develop an emulator that is both accurate and playable. As with virtually all arcade hardware, no public documentation for the Model 3 platform exists. What is known so far has been painstakingly reverse engineered from scratch.
+---
 
-## How To Get It
+## ✨ Features Added in this Fork
 
-Automated builds for Windows, macOS and Linux are now available here on GitHub.  
-Check out the releases page [here](https://github.com/trzy/Supermodel/releases).
+### 🎮 Deterministic Replay System
 
-## Build Instructions
+<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/17f179a5-39f4-4231-9ca8-4c927e09d802"/>
 
-### Windows
+A frame-accurate input recording system designed for perfect synchronization, specifically optimized for technical gameplay in titles like *Spikeout FE*.
 
-The preferred method for building Supermodel is to use GCC and MSYS2. After installing [MSYS2](https://msys2.org), open the MSYS2 shell and install the required dependencies using the pacman package manager:
+* **Perfect Sync:** Fixes desync issues by capturing the initial State Load as the recording's anchor.
+* **Edge-Detection:** Prevents redundant processing during state loads, ensuring playback starts exactly from Frame 0 without lag.
 
-- GCC (```mingw64/mingw-w64-x86_64-gcc```)
-- Make (```mingw64/mingw-w64-x86_64-make```)
-- SDL2 (```mingw64/mingw-w64-x86_64-SDL2```, ```mingw64/mingw-w64-x86_64-SDL2_net```)
+### ⌨️ Customizable System Keys
 
-This can be done using the following commands:
+Unlike the original Supermodel, you can now map the following system functions to any key or button of your choice:
 
-```
-pacman -S mingw64/mingw-w64-x86_64-gcc
-pacman -S mingw64/mingw-w64-x86_64-make
-pacman -S mingw64/mingw-w64-x86_64-SDL2
-pacman -S mingw64/mingw-w64-x86_64-SDL2_net
-```
+* **Pause**
+* **Save State / Load State**
+* **Change Save Slot**
 
-At this point, you can continue using either the MSYS2 shell or Windows Command Prompt but ensure that both ```gcc``` and ```mingw32-make``` are in your path. In MSYS2, the location of these binaries will be ```/mingw64/bin``` and for Command Prompt, assuming MSYS2 was installed in the default location, add ```C:\msys64\mingw64\bin``` to your Windows ```PATH``` variable.
+### 🖥 Seamless GUI Integration
 
-To build Supermodel without network support, use:
+Fully compatible with **[Sega-Model-3-UI](https://github.com/BackPonBeauty/Sega-Model-3-UI-for-20240128-)**. This allows you to manage the new features through a graphical interface without relying on command-line arguments, providing a more intuitive and modern experience.
 
-```
-mingw32-make -f Makefiles/Makefile.Win32
-```
+### 📺 Advanced CRT Emulation
 
-For network support:
+<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/18fba7fd-38bc-4281-8b80-af7768319854" />
 
-```
-mingw32-make -f Makefiles/Makefile.Win32 NET_BOARD=1
-```
 
-### Linux
+Recreates the nostalgic visual aesthetics of 90s arcade cabinets.
 
-Ensure SDL2 is installed. Most package managers ought to have this available. For example, on Ubuntu, it should be sufficient to run:
+* **Barrel Distortion:** Simulates the physical curvature of a CRT monitor. Adjustable via `barrelStrength`.
+* **Scanlines:** Adds high-fidelity scanlines to provide depth and softness to Model 3 polygons. Adjustable via `scanlineStrength`.
 
-```
-sudo apt install libsdl2-dev
-sudo apt install libsdl2-net-dev
-sudo apt install libglu1-mesa-dev
-```
+---
 
-And then build Supermodel:
+## 🛠 Configuration (`Supermodel.ini`)
+
+Add or modify these lines in your `Supermodel.ini` to tune the visuals:
+
+```ini
+; Barrel Distortion Strength (Recommended: 0.01 - 0.04)
+barrelStrength = 0.02
+
+; CRT Scanline Intensity (Recommended: 0.8)
+scanlineStrength = 0.8
 
 ```
-make -f Makefiles/Makefile.UNIX
-```
 
-For network support:
+---
 
-```
-make -f Makefiles/Makefile.UNIX NET_BOARD=1
-```
+## 📥 How to Use Replay
 
-### macOS
+### Recording
 
-Ensure Apple's Xcode Command Line Tools are installed:
-
-From a terminal:
-```
-xcode-select --install
-```
-
-Ensure SDL2 is installed.  Download the latest *.dmg files from both of the links below, and install per the READMEs in the .dmgs (i.e. in "/Library/Frameworks")
-
-* SDL2: https://github.com/libsdl-org/SDL/releases
-
-* SDL_net: https://github.com/libsdl-org/SDL_net/releases
-
-
-And then build Supermodel:
+1. Create a **Save State** at the point where you want to begin.
+2. Launch Supermodel with the `-record` option:
+```bash
+Supermodel.exe -record my_play.rec romname.zip
 
 ```
-make -f Makefiles/Makefile.OSX
+
+
+3. Once the game starts, **perform a State Load**. (This load action is recorded and serves as the sync anchor).
+4. Play the game! All inputs are saved to the `.rec` file.
+
+### Playback
+
+Launch with the `-play` option:
+
+```bash
+Supermodel.exe -play my_play.rec romname.zip
+
 ```
 
-For network support:
+---
 
-```
-make -f Makefiles/Makefile.OSX NET_BOARD=1
-```
+## 🚀 Roadmap
 
-### Note: running on macOS
-If you try and run a macOS binary that was downloaded from the internet and/or built on a different machine, you need to grant macOS permission to execute the binary (just 1-time):
+* [ ] **GUI Integration:** Control Recording/Playback directly from the UI.
+* [ ] **Shader Presets:** Pre-configured settings for different cabinet styles.
 
-* Open the folder containing the binary in Finder, and right (or ctrl) click on it:
+## 👤 Author
 
-* Click "Open" when the following dialogue box appears : "macOS cannot verify the developer of “supermodel-git-xxxx”. Are you sure you want to open it?"
+**BackPonBeauty (背中ポン美)**
 
-* Close the terminal window that opens (after clicking open)
+* GitHub: [backponbeauty](https://www.google.com/search?q=https://github.com/backponbeauty)
+* Specialist in Sega Model 3 research and *Spikeout Final Edition*.
 
-Details: https://support.apple.com/guide/mac-help/open-a-mac-app-from-an-unidentified-developer-mh40616/mac
+---
+
+### 💡 Note to Users
+
+This fork is experimental. For the most stable and official experience, please visit the **[Original Supermodel Repository](https://github.com/trzy/Supermodel)**.
+
+---
