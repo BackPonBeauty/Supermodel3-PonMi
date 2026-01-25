@@ -158,6 +158,16 @@ bool TCPSendAsync::Connect()
 
 	if (result == 0) {
 		m_socket = SDLNet_TCP_Open(&ip);
+		// --- 修正箇所: 送信側にもTCP_NODELAYを適用 ---
+        if (m_socket) {
+            int sock = (int)(intptr_t)SDLNet_TCP_GetSocket(m_socket);
+            int one = 1;
+            #ifdef _WIN32
+                setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+            #else
+                setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+            #endif
+        }
 	}
 
 	return Connected();

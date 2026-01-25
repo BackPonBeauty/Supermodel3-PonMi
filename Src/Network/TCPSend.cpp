@@ -30,6 +30,16 @@
 #define DPRINTF(a, ...)
 #endif
 
+// --- ファイル冒頭に追加 ---
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h> // TCP_NODELAY や IPPROTO_TCP のために必要
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netinet/tcp.h>
+#endif
+
 TCPSend::TCPSend(std::string& ip, int port) :
 	m_ip(ip),
 	m_port(port),
@@ -80,12 +90,27 @@ bool TCPSend::Connected()
 
 bool TCPSend::Connect()
 {
-	IPaddress ip;
-	int result = SDLNet_ResolveHost(&ip, m_ip.c_str(), m_port);
+    IPaddress ip;
+    int result = SDLNet_ResolveHost(&ip, m_ip.c_str(), m_port);
 
-	if (result == 0) {
-		m_socket = SDLNet_TCP_Open(&ip);
-	}
+    if (result == 0) {
+        m_socket = SDLNet_TCP_Open(&ip);
 
-	return Connected();
+        // --- ここから最適化 ---
+        if (m_socket) {
+            #ifdef _WIN32
+                // SDL_netの内部構造体からSOCKET型を直接取り出す
+                SOCKET sock = *(SOCKET*)m_socket; 
+                int one = 1;
+                setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+            #else
+                int sock = *(int*)m_socket;
+                int one = 1;
+                setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+            #endif
+            DPRINTF("TCP_NODELAY enabled on Sender side.\n");
+        }
+    }
+
+    return Connected();
 }

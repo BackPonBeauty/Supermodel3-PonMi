@@ -31,6 +31,16 @@
 #define DPRINTF(a, ...)
 #endif
 
+// --- ファイル冒頭に追加 ---
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h> // TCP_NODELAY や IPPROTO_TCP のために必要
+#else
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <netinet/tcp.h>
+#endif
+
 TCPReceive::TCPReceive(int port) :
 	m_listenSocket(nullptr),
 	m_receiveSocket(nullptr),
@@ -126,26 +136,32 @@ void TCPReceive::ListenFunc()
 {
 	while (m_running) {
 
-		CThread::Sleep(16);
+		CThread::Sleep(1);
 		if (m_receiveSocket) continue;
 
-		auto socket = SDLNet_TCP_Accept(m_listenSocket);
+		TCPsocket socket = SDLNet_TCP_Accept(m_listenSocket);
 
-		if (socket) {
+        if (socket) {
+            // SDL_netのソケットからOS標準のソケット(SOCKET型)を取り出す
+            // SDL_netの内部構造は TCPsocket == struct _TCPsocket* なのでキャストで通ります
+            #ifdef _WIN32
+                SOCKET sock = *(SOCKET*)socket; 
+                int one = 1;
+                setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
+            #else
+                int sock = *(int*)socket;
+                int one = 1;
+                setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+            #endif
 
-			// remove old socket if required from socket set
-			if (m_receiveSocket) {
-				SDLNet_DelSocket(m_socketSet, (SDLNet_GenericSocket)m_receiveSocket.load());
-			}
+            if (m_receiveSocket) {
+                SDLNet_DelSocket(m_socketSet, (SDLNet_GenericSocket)m_receiveSocket.load());
+            }
 
-			m_receiveSocket = socket;
-
-			SDLNet_AddSocket(m_socketSet, (SDLNet_GenericSocket)socket);
-
-			// add socket to socket set
-			DPRINTF("Accepted connection.\n");
-		}
-
+            m_receiveSocket = socket;
+            SDLNet_AddSocket(m_socketSet, (SDLNet_GenericSocket)socket);
+            DPRINTF("Accepted connection: Optimized with TCP_NODELAY\n");
+        }
 	}
 }
 
