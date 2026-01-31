@@ -39,6 +39,16 @@
     #include <netinet/in.h>
     #include <netinet/tcp.h>
 #endif
+#include <zlib.h>
+
+// 作業用バッファ（静的に確保して速度を稼ぐ）
+static unsigned char last_packet[8192];  // 3072 から 8192 へ
+static unsigned char delta_buffer[8192];
+static unsigned char s_send_work_buffer[16384]; // 送信用も余裕を持つ
+static unsigned char c_buf[4096];
+
+static bool first_run = true;
+
 
 TCPSend::TCPSend(std::string& ip, int port) :
 	m_ip(ip),
@@ -58,29 +68,35 @@ TCPSend::~TCPSend()
 	SDLNet_Quit();	// unload lib (winsock dll for windows)
 }
 
-bool TCPSend::Send(const void * data, int length)
-{
-	// If we failed bail out
-	if (!Connected()) {
-		DPRINTF("Not connected\n");
-		return false;
-	}
 
-	DPRINTF("Sending %i bytes\n", length);
+bool TCPSend::Send(const void * data, int length) {
+   
+    int compressed_len = length;
+    const void* p_data = data;
+    //analyze_packet_diff((unsigned char*)data, length);
+    // 1. 圧縮を試みるasdasd
+    if (length > 1500) {
+        int c_res = compress_packet((unsigned char*)data, length, c_buf);
+        if (c_res > 0) {
+            compressed_len = c_res;
+            p_data = c_buf;
+        } else {
+            // 圧縮に失敗、または逆に大きくなった場合は元のデータを送る
+            compressed_len = length;
+            p_data = data;
+        }
+    }
 
-	int sent = SDLNet_TCP_Send(m_socket, &length, sizeof(int));		// pack the length at the start of transmission.
+    // 2. 「ヘッダー8バイト + データ」を1つのメモリにパッキング
+    // [0-3]: 圧縮後サイズ, [4-7]: 元のサイズ
+    memcpy(s_send_work_buffer, &compressed_len, 4);
+    memcpy(s_send_work_buffer + 4, &length, 4);
+    memcpy(s_send_work_buffer + 8, p_data, compressed_len);
 
-	if (!length)
-		return true;		// 0 sized packet will blow our connex
-
-	sent = SDLNet_TCP_Send(m_socket, data, length);
-
-	if (sent < length) {
-		SDLNet_TCP_Close(m_socket);
-		m_socket = nullptr;
-	}
-
-	return true;
+    // 3. 1回のシステムコールで一気に送る
+    SDLNet_TCP_Send(m_socket, s_send_work_buffer, 8 + compressed_len);
+    
+    return true;
 }
 
 bool TCPSend::Connected()
@@ -113,4 +129,49 @@ bool TCPSend::Connect()
     }
 
     return Connected();
+}
+
+
+
+
+void TCPSend::analyze_packet_diff(unsigned char* current_packet, int length) {
+    if (first_run) {
+        memcpy(last_packet, current_packet, length);
+        first_run = false;
+        return;
+    }
+
+    int match_count = 0;
+    for (int i = 0; i < length; i++) {
+        if (current_packet[i] == last_packet[i]) {
+            match_count++;
+        }
+    }
+
+    double match_rate = (double)match_count / length * 100.0;
+    
+    // 100フレームに1回、または変化が激しい時だけログに出すなどの調整を
+    printf("Packet Diff: %d/%d bytes matched (%.2f%%)\n", match_count, length, match_rate);
+
+    // 次回のために保存
+    memcpy(last_packet, current_packet, length);
+}
+
+int TCPSend::compress_packet(unsigned char* current, int length, unsigned char* out_buf) {
+    // 1. XORで差分を0に変換
+    for (int i = 0; i < length; i++) {
+        delta_buffer[i] = current[i] ^ last_packet[i];
+    }
+
+    // 2. zlib圧縮
+    unsigned long compressed_size = length;
+    int res = compress(out_buf, &compressed_size, delta_buffer, length);
+
+    if (res != Z_OK) return -1;
+
+
+    // 次回のために現在のパケットを保存
+    memcpy(last_packet, current, length);
+
+    return (int)compressed_size; // 圧縮後のサイズを返す
 }

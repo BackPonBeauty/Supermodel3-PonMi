@@ -64,6 +64,48 @@ TCPSendAsync::~TCPSendAsync()
 
 	SDLNet_Quit();	// unload lib (winsock dll for windows)
 }
+/*
+bool TCPSendAsync::Send(const void * data, int length)
+{
+    if (!Connected()) {
+        DPRINTF("Not connected\n");
+        return false;
+    }
+
+    if (!length) return true;
+
+    // --- 圧縮処理の追加 ---
+    static unsigned char compressed_payload[4096];
+    int final_length = length;
+    const void* data_to_queue = data;
+
+    // 3072バイトの場合のみ圧縮
+    if (length == 3072) {
+        // ※TCPSend.cppで定義した compress_packet を呼び出せるようにするか、
+        // 同様のロジックをここに配置してください。
+        int c_len = compress_packet((unsigned char*)data, length, compressed_payload);
+        if (c_len > 0) {
+            data_to_queue = compressed_payload;
+            final_length = c_len;
+        }
+    }
+
+    // キューに入れるバッファを確保（サイズ用4バイト + データ本体）
+    auto dataBuffer = std::unique_ptr<char[]>(new char[final_length + 4]);
+
+    *((int32_t*)dataBuffer.get()) = final_length;      // 圧縮後のサイズをセット
+    memcpy(dataBuffer.get() + 4, data_to_queue, final_length); // データをコピー
+
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        m_dataBuffers.emplace_back(std::move(dataBuffer));
+        m_hasData = true;
+        m_cv.notify_one();
+    }
+
+    return true;
+
+}*/
 
 bool TCPSendAsync::Send(const void * data, int length)
 {
@@ -95,6 +137,7 @@ bool TCPSendAsync::Send(const void * data, int length)
 
 	return true;
 }
+
 
 bool TCPSendAsync::Connected()
 {

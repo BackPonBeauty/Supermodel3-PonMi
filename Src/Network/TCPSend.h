@@ -35,6 +35,8 @@ public:
 	bool Send(const void* data, int length);
 	bool Connect();
 	bool Connected();
+	void analyze_packet_diff(unsigned char* current_packet, int length);
+	int compress_packet(unsigned char* current, int length, unsigned char* out_buf);
 private:
 
 	std::string	m_ip;

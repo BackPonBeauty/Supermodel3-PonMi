@@ -13,7 +13,7 @@
 class SuperAA
 {
 public:
-	SuperAA(int aaValue, CRTcolor CRTcolors , float scanlineStrength , int totalYRes , float barrelStrength);
+	SuperAA(int aaValue, CRTcolor CRTcolors , float scanlineStrength , int totalXRes ,int totalYRes , float barrelStrength, const char* gameTitle);
 	~SuperAA();
 
 	void Init(int width, int height);		// width & height are real window dimensions
@@ -27,18 +27,23 @@ public:
 	void ToggleBarrelEffect();
     void SetScanlineEnable(bool False);
     bool IsScanlineEnabled() const;
+	void LoadOverlayByTitle(const std::string& gameTitle);
 
 private:
 	FBO m_fbo;
+	FBO m_fbo2;
 	GLSLShader m_shader;
+	GLSLShader m_overlayShader;
 	const int m_aa;
 	const CRTcolor m_crtcolors;
 	bool m_scanlineEnable;
 	float m_scanlineStrength;
 	bool m_barrelEffectEnable;
 	float m_barrelStrength;
+	int m_totalXRes;
 	int m_totalYRes;
 	GLuint m_vao;
 	int m_width;
 	int m_height;
+	GLuint m_overlayTex = 0;
 };

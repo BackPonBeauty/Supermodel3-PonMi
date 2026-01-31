@@ -1,14 +1,17 @@
 #include "SuperAA.h"
 #include <string>
 #include <algorithm> // for std::max
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength, int totalYRes, float ubarrelStrength) :
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength,int totalXRes , int totalYRes, float ubarrelStrength , const char* gameTitle) :
     m_aa(aaValue),
     m_crtcolors(CRTcolors),
     m_scanlineEnable(true),
     m_scanlineStrength(scanlineStrength),
     m_barrelEffectEnable(true),
     m_barrelStrength(ubarrelStrength),
+    m_totalXRes(totalXRes),
     m_totalYRes(totalYRes),
     m_vao(0),
     m_width(0),
@@ -18,6 +21,17 @@ SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength, int to
     // =========================
     // Vertex Shader
     // =========================
+	static const char* overlayFS = R"glsl(
+#version 410 core
+in vec2 vTexCoord;
+uniform sampler2D uOverlayTex;
+out vec4 fragColor;
+void main() {
+    fragColor = texture(uOverlayTex, vTexCoord);
+}
+)glsl";	
+		
+		
     static const char* vertexShader = R"glsl(
 #version 410 core
 	
@@ -195,10 +209,6 @@ void main()
         color *= mix(SCANLINE_STRENGTH, 1.0, mask);
     }
 	
-	
-
-
-
 
     fragColor = vec4(color, 1.0);
 }
@@ -216,11 +226,17 @@ void main()
     m_shader.GetUniformLocationMap("scanlineEnable");
 	m_shader.GetUniformLocationMap("scanlineStrength");
     m_shader.GetUniformLocationMap("uAspect");
+	m_overlayShader.LoadShaders(vertexShader, overlayFS); 
+	m_overlayShader.GetUniformLocationMap("uOverlayTex");
     
 
     // VAO生成
     glGenVertexArrays(1, &m_vao);
-}
+		
+		if (gameTitle != nullptr) {
+        LoadOverlayByTitle(gameTitle);
+    }
+	}
 }
 // =========================
 // Destructor
@@ -248,7 +264,7 @@ void SuperAA::Init(int width, int height)
     	if (width <= 0 || height <= 0) return;
     		m_fbo.Destroy();
     		m_fbo.Create(width * m_aa, height * m_aa);
-
+			m_fbo2.Create(width, height);
     		m_width  = width;
     		m_height = height;
 		}
@@ -262,63 +278,65 @@ void SuperAA::Init(int width, int height)
 // =========================
 void SuperAA::Draw()
 {
-	if ((m_aa > 1) || (m_crtcolors != CRTcolor::None)) {
-		
-	
-		
-	
-	
-    // 初期化されていない、またはサイズが無効な場合は描画しない
-    if (m_width <= 0 || m_height <= 0) return;
-
-    glDisable(GL_DEPTH_TEST);
-    //glDisable(GL_STENCIL_TEST);
-    //glDisable(GL_SCISSOR_TEST);
-    glDisable(GL_BLEND);
-
-    m_shader.EnableShader();
-
-    // テクスチャバインド (Unit 0)
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, m_fbo.GetTextureID());
-    if (m_shader.attribLocMap["tex1"] >= 0)
-    {
-        glUniform1i(m_shader.attribLocMap["tex1"], 0);
+    // --- 1. ポストエフェクト（AA/CRT）の描画 ---
+    // ここでは glViewport をいじりません。Supermodelが設定した比率（4:3 or 16:9）のまま描画させます。
+    if ((m_aa > 1) || (m_crtcolors != CRTcolor::None)) {
+        if (m_width > 0 && m_height > 0) {
+            m_shader.EnableShader();
+            
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, m_fbo.GetTextureID());
+            
+            if (m_shader.attribLocMap["tex1"] >= 0) glUniform1i(m_shader.attribLocMap["tex1"], 0);
+            
+        }
     }
-			
-	//glUniform1i(m_shader.attribLocMap["barrelEffectEnable"],m_barrelEffectEnable ? 1 : 0);
-		
-		
-    glUniform1i(m_shader.attribLocMap["scanlineEnable"],m_scanlineEnable ? 1 : 0);
-/*
-    if (m_barrelEffectEnable)
-	{
-		glUniform1f(m_shader.attribLocMap["BarrelStrength"],m_barrelStrength);
-	}
-	else
-	{
-		glUniform1f(m_shader.attribLocMap["BarrelStrength"],0.0f);
-	}
-*/
+	if (m_shader.attribLocMap["scanlineEnable"] >= 0) glUniform1i(m_shader.attribLocMap["scanlineEnable"], m_scanlineEnable ? 1 : 0);
+	    // 【重要】比率は頂点シェーダーの vertices[]（-1.0〜1.0）が Viewport にフィットします。
+            // Supermodelが4:3のViewportを設定していれば、そこに4:3で収まります。
+            glBindVertexArray(m_vao);
+        	glViewport(0, 0, m_width, m_height);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        	glBindVertexArray(0);
+            m_shader.DisableShader();
 	
-	// Aspect / Barrel（今はデバッグ固定でもOK）
-    if (m_shader.attribLocMap["uAspect"] >= 0)
-        glUniform1f(m_shader.attribLocMap["uAspect"],
-                    float(m_width) / float(m_height));
 
-    //if (m_shader.attribLocMap["BarrelStrength"] >= 0)
-        //glUniform1f(m_shader.attribLocMap["BarrelStrength"], 0.01f);
-	
-    glBindVertexArray(m_vao);
-    glViewport(0, 0, m_width, m_height);
-    
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    // --- 2. オーバーレイの描画 ---
+    // AAの設定（m_aa > 1等）に関わらず、テクスチャがあれば必ず実行するよう外に出しました。//m_overlayTex != 0
+    if (m_overlayTex != 0) { 
+        // 現在のViewport（ゲーム画面用の4:3など）を一時保存
+        GLint last_viewport[4];
+        glGetIntegerv(GL_VIEWPORT, last_viewport);
+
+        // オーバーレイ描画のために全画面（16:9）へ一時変更
+        glViewport(0, 0, m_totalXRes, m_totalYRes); 
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDisable(GL_DEPTH_TEST); 
+
+        m_overlayShader.EnableShader();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m_overlayTex);
+        
+        if (m_overlayShader.attribLocMap["uOverlayTex"] >= 0) {
+            glUniform1i(m_overlayShader.attribLocMap["uOverlayTex"], 0);
+        }
+
+        glBindVertexArray(m_vao);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); 
+
+        m_overlayShader.DisableShader();
+        glDisable(GL_BLEND);
+        
+        // 保存しておいた元のViewport（4:3等）に戻す
+        // これをしないと、次のフレームのゲーム描画が引き伸ばされます。
+        glViewport(last_viewport[0], last_viewport[1], last_viewport[2], last_viewport[3]);
+    }
     
     glBindVertexArray(0);
-    m_shader.DisableShader();
-	}
-	
 }
+
 
 void SuperAA::ToggleScanline()
 {
@@ -328,8 +346,8 @@ void SuperAA::ToggleScanline()
 }
 void SuperAA::ToggleBarrelEffect()
 {
-	m_barrelEffectEnable = !m_barrelEffectEnable;
-	printf("[SuperAA] barrelEffect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
+	//m_barrelEffectEnable = !m_barrelEffectEnable;
+	//printf("[SuperAA] barrelEffect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
 	
 }
 
@@ -354,5 +372,76 @@ bool SuperAA::IsScanlineEnabled() const
 GLuint SuperAA::GetTargetID()
 {
     return m_fbo.GetFBOID();
+}
+GLuint LoadPNGTexture(const char* filename) {
+    int width, height, channels;
+    // 上下反転が必要な場合は true に（OpenGLは左下が原点のため）
+    stbi_set_flip_vertically_on_load(true); 
+    
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, 4); // 強制的にRGBAで読み込む
+    
+    if (!data) {
+        //printf("Failed to load texture: %s\n", filename);
+        return 0;
+    }
+
+    GLuint textureID;
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+
+    // PNGテクスチャの設定（RGBAを指定）
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+    // フィルタリング設定（オーバーレイなので綺麗に見えるよう線形補間）
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    // 画面端の処理
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    stbi_image_free(data);
+    return textureID;
+}
+// --- ヘルパー関数: メモリから読み込む ---
+GLuint LoadTextureFromMemory(const unsigned char* data, int len) {
+    int width, height, channels;
+    stbi_set_flip_vertically_on_load(true);
+    unsigned char* pixels = stbi_load_from_memory(data, len, &width, &height, &channels, 4);
+    
+    if (!pixels) return 0;
+
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    
+    stbi_image_free(pixels);
+    return tex;
+}
+void SuperAA::LoadOverlayByTitle(const std::string& gameTitle) {
+    // 1. タイトル文字列の整形 (空白をハイフンに)
+    std::string processedTitle = gameTitle;
+    std::replace(processedTitle.begin(), processedTitle.end(), ' ', '-');
+
+    // 2. 古いテクスチャの破棄
+    if (m_overlayTex != 0) {
+        glDeleteTextures(1, &m_overlayTex);
+        m_overlayTex = 0;
+    }
+
+    // 3. まずファイルを探す
+    std::string path = "image/" + processedTitle + ".png";
+    m_overlayTex = LoadPNGTexture(path.c_str());
+
+    // 4. ファイルがなければ、埋め込み画像を読み込む
+    if (m_overlayTex == 0) {
+        printf("[SuperAA] Overlay file not found.\n");
+        //m_overlayTex = LoadTextureFromMemory(warning_text_png, warning_text_png_len);
+    } else {
+        printf("[SuperAA] Loaded overlay: %s\n", path.c_str());
+    }
 }
 
