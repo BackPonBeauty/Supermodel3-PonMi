@@ -35,27 +35,26 @@
 class TCPSendAsync
 {
 public:
-	TCPSendAsync(std::string& ip, int port);
+	TCPSendAsync(std::string &ip, int port);
 	~TCPSendAsync();
 
-	bool Send(const void* data, int length);
+	bool Send(const void *data, int length);
 	bool Connect();
 	bool Connected();
-private:
 
+private:
 	void SendThread();
 
-	std::string				m_ip;
-	int						m_port;
-	TCPsocket				m_socket;		// sdl socket
-	std::atomic<bool>		m_hasData;
+	std::string m_ip;
+	int m_port;
+	TCPsocket m_socket; // sdl socket
+	std::atomic<bool> m_hasData;
 	std::condition_variable m_cv;
-	std::vector<char>		m_buffer;
-	std::mutex				m_mutex;
-	std::thread				m_sendThread;
+	std::vector<char> m_buffer;
+	std::mutex m_mutex;
+	std::thread m_sendThread;
 
-	std::vector<std::unique_ptr<char[]>> m_dataBuffers;	// each pointer is to an array of data. First word is the size of the data
-
+	std::vector<std::unique_ptr<char[]>> m_dataBuffers; // each pointer is to an array of data. First word is the size of the data
 };
 
 #endif

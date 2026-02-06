@@ -2161,15 +2161,15 @@ void CModel3::RunMainBoardFrame(void)
 
     auto pingPongFlipLine = TileGen.ReadRegister(0x08);
 
-	// Run the PowerPC for the active display part of the frame
-    for (int i = 0; i < 384; i++)
+    // i を unsigned int に変更して警告を消す
+    for (unsigned int i = 0; i < 384; i++)
     {
         if (i == pingPongFlipLine) {
             GPU.FlipPingPongBit();
         }
 
         if (i == 383) {
-            IRQ.Assert(0x02);       // irq2 is asserted at the start of the last line on system24 (as apposed to the end). Lost world won't work without this, the game soft locks. We assume the same here
+            IRQ.Assert(0x02);
         }
 
         TileGen.DrawLine(i);

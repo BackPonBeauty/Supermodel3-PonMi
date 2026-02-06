@@ -8,7 +8,7 @@
 // ===== フォーマット定義 =====
 struct ReplayHeader
 {
-    char     magic[4];
+    char magic[4];
     uint32_t version;
     uint32_t flags;
     uint32_t reserved;
@@ -18,27 +18,25 @@ struct ReplayHeader
 struct ReplayEvent
 {
     uint32_t frame;
-    char     id[32];
-    int32_t  value;
+    char id[32];
+    int32_t value;
 };
 #pragma pack(pop)
 
-
 // ===== 静的メンバ定義 =====
-FILE*    ReplayPlayer::s_fp         = nullptr;
-bool     ReplayPlayer::s_playing    = false;
+FILE *ReplayPlayer::s_fp = nullptr;
+bool ReplayPlayer::s_playing = false;
 uint32_t ReplayPlayer::s_replayFrame = 0;
 static std::unordered_map<std::string, int> s_inputState;
 
-// ★ これが正しい static メンバ本体（1個だけ）
 std::vector<ReplayEvent> ReplayPlayer::s_frameEvents;
 std::vector<ReplayEvent> ReplayPlayer::s_events;
-size_t   ReplayPlayer::s_cursor       = 0;
+size_t ReplayPlayer::s_cursor = 0;
 
 // ===== API =====
-bool ReplayPlayer::Start(const char* filename)
+bool ReplayPlayer::Start(const char *filename)
 {
-    
+
     if (s_playing)
         return false;
 
@@ -66,8 +64,7 @@ bool ReplayPlayer::Start(const char* filename)
         s_fp = nullptr;
         return false;
     }
-	
-	 // ★ ここが決定的に足りてなかった部分
+
     ReplayEvent ev;
     while (fread(&ev, sizeof(ev), 1, s_fp) == 1)
     {
@@ -75,18 +72,17 @@ bool ReplayPlayer::Start(const char* filename)
     }
 
     printf("[Replay] Loaded %zu events\n", s_events.size());
-	
-	if (!s_events.empty())
-	{
-    	s_replayFrame = s_events[0].frame;
-	}
-	else
-	{
-		s_inputState.clear();
-    	s_replayFrame = 0;
-		s_cursor = 0;
-	}
-	
+
+    if (!s_events.empty())
+    {
+        s_replayFrame = s_events[0].frame;
+    }
+    else
+    {
+        s_inputState.clear();
+        s_replayFrame = 0;
+        s_cursor = 0;
+    }
 
     s_playing = true;
 
@@ -94,12 +90,10 @@ bool ReplayPlayer::Start(const char* filename)
     return true;
 }
 
-
 bool ReplayPlayer::IsPlaying()
 {
     return s_playing;
 }
-
 
 void ReplayPlayer::Stop()
 {
@@ -113,7 +107,6 @@ void ReplayPlayer::Stop()
     printf("[Replay] Playback stopped\n");
 }
 
-
 void ReplayPlayer::Tick()
 {
     if (!s_playing)
@@ -125,19 +118,19 @@ uint32_t ReplayPlayer::GetFrame()
 {
     return s_replayFrame;
 }
-void ReplayPlayer::ProcessEvents(uint32_t emuFrame, std::vector<ReplayEvent>& outEvents)
+void ReplayPlayer::ProcessEvents(uint32_t emuFrame, std::vector<ReplayEvent> &outEvents)
 {
     // ★ まず最初に「もう終わっているか」をチェック
     if (s_cursor >= s_events.size())
     {
-        Stop();   // ← 再生終了
+        Stop(); // ← 再生終了
         return;
     }
-	// 差分イベントを state に反映
+    // 差分イベントを state に反映
     while (s_cursor < s_events.size() &&
            s_events[s_cursor].frame == emuFrame)
     {
-        const ReplayEvent& ev = s_events[s_cursor];
+        const ReplayEvent &ev = s_events[s_cursor];
         s_inputState[ev.id] = ev.value;
         s_cursor++;
     }
@@ -151,58 +144,43 @@ void ReplayPlayer::ProcessEvents(uint32_t emuFrame, std::vector<ReplayEvent>& ou
 
     // 現在の「全状態」を outEvents に詰める
     outEvents.clear();
-    for (const auto& it : s_inputState)
+    for (const auto &it : s_inputState)
     {
         ReplayEvent ev{};
-        ev.frame   = emuFrame;
+        ev.frame = emuFrame;
         strncpy(ev.id, it.first.c_str(), sizeof(ev.id) - 1);
         ev.id[sizeof(ev.id) - 1] = '\0';
-        ev.value   = it.second;
+        ev.value = it.second;
 
         outEvents.push_back(ev);
     }
 }
 
 // 特定の入力 ID の現在の値を返す
-int ReplayPlayer::GetInputValue(const char* id)
+int ReplayPlayer::GetInputValue(const char *id)
 {
     auto it = s_inputState.find(id);
-    if (it != s_inputState.end()) {
+    if (it != s_inputState.end())
+    {
         return it->second;
     }
     return 0; // 記録がなければ 0
 }
 
-// vector へのコピーをやめ、状態更新だけに特化させる
 void ReplayPlayer::UpdateState(uint32_t emuFrame)
 {
     // cursor が末尾に達するまで、そのフレームのイベントをすべて map に流し込む
     // emuFrame が 100 なら、100番のイベントを全部拾う
     while (s_cursor < s_events.size() && s_events[s_cursor].frame == emuFrame)
     {
-        const ReplayEvent& ev = s_events[s_cursor];
+        const ReplayEvent &ev = s_events[s_cursor];
         s_inputState[ev.id] = ev.value;
         s_cursor++;
     }
 
     // 全イベントを読み終えたら終了
-    if (s_cursor >= s_events.size()) 
+    if (s_cursor >= s_events.size())
     {
         Stop();
     }
 }
-/*
-void ReplayPlayer::ProcessEvents(uint32_t emuFrame, std::vector<ReplayEvent>& outEvents)
-{
-	outEvents.clear(); // ★ 毎フレーム分を返す
-    while (s_cursor < s_events.size() &&
-           s_events[s_cursor].frame == emuFrame)
-    {
-        const ReplayEvent& ev = s_events[s_cursor];
-
-       printf("[ReplayPlayer] F=%u %s v=%d\n", ev.frame, ev.mapping, ev.value);
-    	outEvents.push_back(s_events[s_cursor]); // ★ 返す
-        s_cursor++;
-    }
-}
-*/

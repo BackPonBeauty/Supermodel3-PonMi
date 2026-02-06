@@ -34,13 +34,12 @@ public:
 	TCPReceive(int port);
 	~TCPReceive();
 
-	bool CheckDataAvailable(int timeoutMS = 0);		// timeoutMS -1 = wait forever until data arrives, 0 = no waiting, 1+ wait time in milliseconds
-	std::vector<char>& Receive();
+	bool CheckDataAvailable(int timeoutMS = 0); // timeoutMS -1 = wait forever until data arrives, 0 = no waiting, 1+ wait time in milliseconds
+	std::vector<char> &Receive();
 	bool Connected();
-	void decompress_packet(unsigned char* compressed_data, int compressed_len, unsigned char* out_frame, int original_len);
+	void decompress_packet(unsigned char *compressed_data, int compressed_len, unsigned char *out_frame, int original_len);
 
 private:
-
 	void ListenFunc();
 
 	TCPsocket m_listenSocket;
@@ -48,9 +47,9 @@ private:
 	SDLNet_SocketSet m_socketSet;
 	std::thread m_listenThread;
 	std::atomic_bool m_running;
-// --- 高速化のためのバッファ群 ---
-    std::vector<char> m_recBuffer;   // 最終的にゲームに渡す用
-    std::vector<char> m_tempBuffer;  // ネットワークから直接受ける用
+	// --- 高速化のためのバッファ群 ---
+	std::vector<char> m_recBuffer;	// 最終的にゲームに渡す用
+	std::vector<char> m_tempBuffer; // ネットワークから直接受ける用
 };
 
 #endif

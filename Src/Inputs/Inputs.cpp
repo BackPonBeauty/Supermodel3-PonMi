@@ -7,7 +7,7 @@
  ** This file is part of Supermodel.
  **
  ** Supermodel is free software: you can redistribute it and/or modify it under
- ** the terms of the GNU General Public License as published by the Free 
+ ** the terms of the GNU General Public License as published by the Free
  ** Software Foundation, either version 3 of the License, or (at your option)
  ** any later version.
  **
@@ -19,7 +19,7 @@
  ** You should have received a copy of the GNU General Public License along
  ** with Supermodel.  If not, see <http://www.gnu.org/licenses/>.
  **/
- 
+
 /*
  * Inputs.cpp
  *
@@ -42,17 +42,15 @@
 #include <unordered_map>
 #include <cstdio>
 
-
-std::unordered_map<CInput*, int> m_prevState;
-
+std::unordered_map<CInput *, int> m_prevState;
 
 #pragma pack(push, 1)
 
 struct ReplayEvent
 {
-    uint32_t frame;
-    char     id[32];
-    int32_t  value;
+	uint32_t frame;
+	char id[32];
+	int32_t value;
 };
 #pragma pack(pop)
 static std::vector<ReplayEvent> replayEvents;
@@ -61,250 +59,243 @@ using namespace std;
 uint32_t g_frameCounter = 0;
 uint32_t lastEmuFrame = 0;
 
-static void ApplyReplayInput(
-    CInput* in,
-    const std::vector<ReplayEvent>& replayEvents);
-
-static void ApplyLiveInput(CInput* in);
-
-
 CInputs::CInputs(std::shared_ptr<CInputSystem> system)
-  : m_system(system)
+	: m_system(system)
 {
 	// UI controls are hard coded here, everything else is initialized to NONE so that it can be loaded from
 	// the config file.
 
 	// UI Controls
-	uiToggleScanline   = AddSwitchInput("UIScanline",         "Toggle Scanline",       Game::INPUT_UI, "KEY_F4");
-	uiBarrelEffect     = AddSwitchInput("UIBarrelEffect",     "BarrelEffect",          Game::INPUT_UI, "KEY_F3");
-	uiExit             = AddSwitchInput("UIExit",             "Exit UI",               Game::INPUT_UI, "KEY_ESCAPE");
-	uiReset            = AddSwitchInput("UIReset",            "Reset",                 Game::INPUT_UI, "KEY_ALT+KEY_R");
-	uiPause            = AddSwitchInput("UIPause",            "Pause",                 Game::INPUT_COMMON, "KEY_ALT+KEY_P");
-	uiFullScreen       = AddSwitchInput("UIFullScreen",       "Toggle Fullscreen",     Game::INPUT_UI, "KEY_ALT+KEY_RETURN");
-	uiSaveState        = AddSwitchInput("UISaveState",        "Save State",            Game::INPUT_COMMON, "KEY_F5");
-	uiChangeSlot       = AddSwitchInput("UIChangeSlot",       "Change Save Slot",      Game::INPUT_COMMON, "KEY_F6");
-	uiLoadState        = AddSwitchInput("UILoadState",        "Load State",            Game::INPUT_COMMON, "KEY_F7");
-	uiMusicVolUp       = AddSwitchInput("UIMusicVolUp",       "Increase Music Volume", Game::INPUT_UI, "KEY_F10");
-	uiMusicVolDown     = AddSwitchInput("UIMusicVolDown",     "Decrease Music Volume", Game::INPUT_UI, "KEY_F9");
-	uiSoundVolUp       = AddSwitchInput("UISoundVolUp",       "Increase Sound Volume", Game::INPUT_UI, "KEY_F12");
-	uiSoundVolDown     = AddSwitchInput("UISoundVolDown",     "Decrease Sound Volume", Game::INPUT_UI, "KEY_F11");
-	uiClearNVRAM       = AddSwitchInput("UIClearNVRAM",       "Clear NVRAM",           Game::INPUT_UI, "KEY_ALT+KEY_N");
-	uiSelectCrosshairs = AddSwitchInput("UISelectCrosshairs", "Select Crosshairs",     Game::INPUT_UI, "KEY_ALT+KEY_I");
-	uiToggleFrLimit    = AddSwitchInput("UIToggleFrameLimit", "Toggle Frame Limiting", Game::INPUT_UI, "KEY_ALT+KEY_T");
-	uiDumpInpState     = AddSwitchInput("UIDumpInputState",   "Dump Input State",      Game::INPUT_UI, "KEY_ALT+KEY_U");
-	uiDumpTimings      = AddSwitchInput("UIDumpTimings",      "Dump Frame Timings",    Game::INPUT_UI, "KEY_ALT+KEY_O");
-	uiScreenshot       = AddSwitchInput("UIScreenShot",	      "Screenshot",            Game::INPUT_UI, "KEY_ALT+KEY_S");
+	uiToggleScanline = AddSwitchInput("UIScanline", "Toggle Scanline", Game::INPUT_UI, "KEY_F4");
+	uiBarrelEffect = AddSwitchInput("UIBarrelEffect", "BarrelEffect", Game::INPUT_UI, "KEY_F3");
+	uiExit = AddSwitchInput("UIExit", "Exit UI", Game::INPUT_UI, "KEY_ESCAPE");
+	uiReset = AddSwitchInput("UIReset", "Reset", Game::INPUT_UI, "KEY_ALT+KEY_R");
+	uiPause = AddSwitchInput("UIPause", "Pause", Game::INPUT_COMMON, "KEY_ALT+KEY_P");
+	uiFullScreen = AddSwitchInput("UIFullScreen", "Toggle Fullscreen", Game::INPUT_UI, "KEY_ALT+KEY_RETURN");
+	uiSaveState = AddSwitchInput("UISaveState", "Save State", Game::INPUT_COMMON, "KEY_F5");
+	uiChangeSlot = AddSwitchInput("UIChangeSlot", "Change Save Slot", Game::INPUT_COMMON, "KEY_F6");
+	uiLoadState = AddSwitchInput("UILoadState", "Load State", Game::INPUT_COMMON, "KEY_F7");
+	uiMusicVolUp = AddSwitchInput("UIMusicVolUp", "Increase Music Volume", Game::INPUT_UI, "KEY_F10");
+	uiMusicVolDown = AddSwitchInput("UIMusicVolDown", "Decrease Music Volume", Game::INPUT_UI, "KEY_F9");
+	uiSoundVolUp = AddSwitchInput("UISoundVolUp", "Increase Sound Volume", Game::INPUT_UI, "KEY_F12");
+	uiSoundVolDown = AddSwitchInput("UISoundVolDown", "Decrease Sound Volume", Game::INPUT_UI, "KEY_F11");
+	uiClearNVRAM = AddSwitchInput("UIClearNVRAM", "Clear NVRAM", Game::INPUT_UI, "KEY_ALT+KEY_N");
+	uiSelectCrosshairs = AddSwitchInput("UISelectCrosshairs", "Select Crosshairs", Game::INPUT_UI, "KEY_ALT+KEY_I");
+	uiToggleFrLimit = AddSwitchInput("UIToggleFrameLimit", "Toggle Frame Limiting", Game::INPUT_UI, "KEY_ALT+KEY_T");
+	uiDumpInpState = AddSwitchInput("UIDumpInputState", "Dump Input State", Game::INPUT_UI, "KEY_ALT+KEY_U");
+	uiDumpTimings = AddSwitchInput("UIDumpTimings", "Dump Frame Timings", Game::INPUT_UI, "KEY_ALT+KEY_O");
+	uiScreenshot = AddSwitchInput("UIScreenShot", "Screenshot", Game::INPUT_UI, "KEY_ALT+KEY_S");
 #ifdef SUPERMODEL_DEBUGGER
-	uiEnterDebugger    = AddSwitchInput("UIEnterDebugger",    "Enter Debugger",        Game::INPUT_UI, "KEY_ALT+KEY_B");
+	uiEnterDebugger = AddSwitchInput("UIEnterDebugger", "Enter Debugger", Game::INPUT_UI, "KEY_ALT+KEY_B");
 #endif
 
 	// Common Controls
-	start[0]           = AddSwitchInput("Start1",   "P1 Start",  Game::INPUT_COMMON, "NONE");
-	start[1]           = AddSwitchInput("Start2",   "P2 Start",  Game::INPUT_COMMON, "NONE");
-	coin[0]            = AddSwitchInput("Coin1",    "P1 Coin",   Game::INPUT_COMMON, "NONE");
-	coin[1]            = AddSwitchInput("Coin2",    "P2 Coin",   Game::INPUT_COMMON, "NONE");
-	service[0]         = AddSwitchInput("ServiceA", "Service A", Game::INPUT_COMMON, "NONE");
-	service[1]         = AddSwitchInput("ServiceB", "Service B", Game::INPUT_COMMON, "NONE");
-	test[0]            = AddSwitchInput("TestA",    "Test A",    Game::INPUT_COMMON, "NONE");
-	test[1]            = AddSwitchInput("TestB",    "Test B",    Game::INPUT_COMMON, "NONE");
+	start[0] = AddSwitchInput("Start1", "P1 Start", Game::INPUT_COMMON, "NONE");
+	start[1] = AddSwitchInput("Start2", "P2 Start", Game::INPUT_COMMON, "NONE");
+	coin[0] = AddSwitchInput("Coin1", "P1 Coin", Game::INPUT_COMMON, "NONE");
+	coin[1] = AddSwitchInput("Coin2", "P2 Coin", Game::INPUT_COMMON, "NONE");
+	service[0] = AddSwitchInput("ServiceA", "Service A", Game::INPUT_COMMON, "NONE");
+	service[1] = AddSwitchInput("ServiceB", "Service B", Game::INPUT_COMMON, "NONE");
+	test[0] = AddSwitchInput("TestA", "Test A", Game::INPUT_COMMON, "NONE");
+	test[1] = AddSwitchInput("TestB", "Test B", Game::INPUT_COMMON, "NONE");
 
 	// 4-Way Joysticks
-	up[0]              = AddSwitchInput("JoyUp",     "P1 Joystick Up",    Game::INPUT_JOYSTICK1, "NONE");
-	down[0]            = AddSwitchInput("JoyDown",   "P1 Joystick Down",  Game::INPUT_JOYSTICK1, "NONE");
-	left[0]            = AddSwitchInput("JoyLeft",   "P1 Joystick Left",  Game::INPUT_JOYSTICK1, "NONE");
-	right[0]           = AddSwitchInput("JoyRight",  "P1 Joystick Right", Game::INPUT_JOYSTICK1, "NONE");
-	up[1]              = AddSwitchInput("JoyUp2",    "P2 Joystick Up",    Game::INPUT_JOYSTICK2, "NONE");
-	down[1]            = AddSwitchInput("JoyDown2",  "P2 Joystick Down",  Game::INPUT_JOYSTICK2, "NONE");
-	left[1]            = AddSwitchInput("JoyLeft2",  "P2 Joystick Left",  Game::INPUT_JOYSTICK2, "NONE");
-	right[1]           = AddSwitchInput("JoyRight2", "P2 Joystick Right", Game::INPUT_JOYSTICK2, "NONE");
+	up[0] = AddSwitchInput("JoyUp", "P1 Joystick Up", Game::INPUT_JOYSTICK1, "NONE");
+	down[0] = AddSwitchInput("JoyDown", "P1 Joystick Down", Game::INPUT_JOYSTICK1, "NONE");
+	left[0] = AddSwitchInput("JoyLeft", "P1 Joystick Left", Game::INPUT_JOYSTICK1, "NONE");
+	right[0] = AddSwitchInput("JoyRight", "P1 Joystick Right", Game::INPUT_JOYSTICK1, "NONE");
+	up[1] = AddSwitchInput("JoyUp2", "P2 Joystick Up", Game::INPUT_JOYSTICK2, "NONE");
+	down[1] = AddSwitchInput("JoyDown2", "P2 Joystick Down", Game::INPUT_JOYSTICK2, "NONE");
+	left[1] = AddSwitchInput("JoyLeft2", "P2 Joystick Left", Game::INPUT_JOYSTICK2, "NONE");
+	right[1] = AddSwitchInput("JoyRight2", "P2 Joystick Right", Game::INPUT_JOYSTICK2, "NONE");
 
 	// Fighting Game Buttons
-	punch[0]           = AddSwitchInput("Punch",   "P1 Punch",  Game::INPUT_FIGHTING, "NONE");
-	kick[0]            = AddSwitchInput("Kick",    "P1 Kick",   Game::INPUT_FIGHTING, "NONE");
-	guard[0]           = AddSwitchInput("Guard",   "P1 Guard",  Game::INPUT_FIGHTING, "NONE");
-	escape[0]          = AddSwitchInput("Escape",  "P1 Escape", Game::INPUT_FIGHTING, "NONE");
-	punch[1]           = AddSwitchInput("Punch2",  "P2 Punch",  Game::INPUT_FIGHTING, "NONE");
-	kick[1]            = AddSwitchInput("Kick2",   "P2 Kick",   Game::INPUT_FIGHTING, "NONE");
-	guard[1]           = AddSwitchInput("Guard2",  "P2 Guard",  Game::INPUT_FIGHTING, "NONE");
-	escape[1]          = AddSwitchInput("Escape2", "P2 Escape", Game::INPUT_FIGHTING, "NONE");
+	punch[0] = AddSwitchInput("Punch", "P1 Punch", Game::INPUT_FIGHTING, "NONE");
+	kick[0] = AddSwitchInput("Kick", "P1 Kick", Game::INPUT_FIGHTING, "NONE");
+	guard[0] = AddSwitchInput("Guard", "P1 Guard", Game::INPUT_FIGHTING, "NONE");
+	escape[0] = AddSwitchInput("Escape", "P1 Escape", Game::INPUT_FIGHTING, "NONE");
+	punch[1] = AddSwitchInput("Punch2", "P2 Punch", Game::INPUT_FIGHTING, "NONE");
+	kick[1] = AddSwitchInput("Kick2", "P2 Kick", Game::INPUT_FIGHTING, "NONE");
+	guard[1] = AddSwitchInput("Guard2", "P2 Guard", Game::INPUT_FIGHTING, "NONE");
+	escape[1] = AddSwitchInput("Escape2", "P2 Escape", Game::INPUT_FIGHTING, "NONE");
 
 	// Spikeout Buttons
-	shift              = AddSwitchInput("Shift",   "Shift", Game::INPUT_SPIKEOUT, "NONE");
-	beat               = AddSwitchInput("Beat",    "Beat",  Game::INPUT_SPIKEOUT, "NONE");
-	charge             = AddSwitchInput("Charge",  "Charge",Game::INPUT_SPIKEOUT, "NONE");
-	jump               = AddSwitchInput("Jump",    "Jump",  Game::INPUT_SPIKEOUT, "NONE");
+	shift = AddSwitchInput("Shift", "Shift", Game::INPUT_SPIKEOUT, "NONE");
+	beat = AddSwitchInput("Beat", "Beat", Game::INPUT_SPIKEOUT, "NONE");
+	charge = AddSwitchInput("Charge", "Charge", Game::INPUT_SPIKEOUT, "NONE");
+	jump = AddSwitchInput("Jump", "Jump", Game::INPUT_SPIKEOUT, "NONE");
 
 	// Virtua Striker Buttons
-	shortPass[0]       = AddSwitchInput("ShortPass",  "P1 Short Pass", Game::INPUT_SOCCER, "NONE");
-	longPass[0]        = AddSwitchInput("LongPass",   "P1 Long Pass",  Game::INPUT_SOCCER, "NONE");
-	shoot[0]           = AddSwitchInput("Shoot",      "P1 Shoot",      Game::INPUT_SOCCER, "NONE");
-	shortPass[1]       = AddSwitchInput("ShortPass2", "P2 Short Pass", Game::INPUT_SOCCER, "NONE");
-	longPass[1]        = AddSwitchInput("LongPass2",  "P2 Long Pass",  Game::INPUT_SOCCER, "NONE");
-	shoot[1]           = AddSwitchInput("Shoot2",     "P2 Shoot",      Game::INPUT_SOCCER, "NONE");
+	shortPass[0] = AddSwitchInput("ShortPass", "P1 Short Pass", Game::INPUT_SOCCER, "NONE");
+	longPass[0] = AddSwitchInput("LongPass", "P1 Long Pass", Game::INPUT_SOCCER, "NONE");
+	shoot[0] = AddSwitchInput("Shoot", "P1 Shoot", Game::INPUT_SOCCER, "NONE");
+	shortPass[1] = AddSwitchInput("ShortPass2", "P2 Short Pass", Game::INPUT_SOCCER, "NONE");
+	longPass[1] = AddSwitchInput("LongPass2", "P2 Long Pass", Game::INPUT_SOCCER, "NONE");
+	shoot[1] = AddSwitchInput("Shoot2", "P2 Shoot", Game::INPUT_SOCCER, "NONE");
 
 	// Racing Game Steering Controls
-	auto steeringLeft  = AddAnalogInput("SteeringLeft",  "Steer Left",  Game::INPUT_VEHICLE, "NONE");
+	auto steeringLeft = AddAnalogInput("SteeringLeft", "Steer Left", Game::INPUT_VEHICLE, "NONE");
 	auto steeringRight = AddAnalogInput("SteeringRight", "Steer Right", Game::INPUT_VEHICLE, "NONE");
 
-	steering           = AddAxisInput  ("Steering",      "Full Steering",           Game::INPUT_VEHICLE, "NONE", steeringLeft, steeringRight);
-	accelerator        = AddAnalogInput("Accelerator",   "Accelerator Pedal",       Game::INPUT_VEHICLE, "NONE");
-	brake              = AddAnalogInput("Brake",         "Brake Pedal/Front Brake", Game::INPUT_VEHICLE, "NONE");
-	gearShiftUp        = AddSwitchInput("GearShiftUp",   "Shift Up",                Game::INPUT_VEHICLE, "NONE");
-	gearShiftDown      = AddSwitchInput("GearShiftDown", "Shift Down",              Game::INPUT_VEHICLE, "NONE");
+	steering = AddAxisInput("Steering", "Full Steering", Game::INPUT_VEHICLE, "NONE", steeringLeft, steeringRight);
+	accelerator = AddAnalogInput("Accelerator", "Accelerator Pedal", Game::INPUT_VEHICLE, "NONE");
+	brake = AddAnalogInput("Brake", "Brake Pedal/Front Brake", Game::INPUT_VEHICLE, "NONE");
+	gearShiftUp = AddSwitchInput("GearShiftUp", "Shift Up", Game::INPUT_VEHICLE, "NONE");
+	gearShiftDown = AddSwitchInput("GearShiftDown", "Shift Down", Game::INPUT_VEHICLE, "NONE");
 
 	// Racing Game Gear Shift
-	auto shift1 = AddSwitchInput("GearShift1", "Shift 1",       Game::INPUT_SHIFT4,  "NONE");
-	auto shift2 = AddSwitchInput("GearShift2", "Shift 2",       Game::INPUT_SHIFT4,  "NONE");
-	auto shift3 = AddSwitchInput("GearShift3", "Shift 3",       Game::INPUT_SHIFT4,  "NONE");
-	auto shift4 = AddSwitchInput("GearShift4", "Shift 4",       Game::INPUT_SHIFT4,  "NONE");
-	auto shiftN = AddSwitchInput("GearShiftN", "Shift Neutral", Game::INPUT_SHIFT4,  "NONE");
+	auto shift1 = AddSwitchInput("GearShift1", "Shift 1", Game::INPUT_SHIFT4, "NONE");
+	auto shift2 = AddSwitchInput("GearShift2", "Shift 2", Game::INPUT_SHIFT4, "NONE");
+	auto shift3 = AddSwitchInput("GearShift3", "Shift 3", Game::INPUT_SHIFT4, "NONE");
+	auto shift4 = AddSwitchInput("GearShift4", "Shift 4", Game::INPUT_SHIFT4, "NONE");
+	auto shiftN = AddSwitchInput("GearShiftN", "Shift Neutral", Game::INPUT_SHIFT4, "NONE");
 
-	gearShift4         = AddGearShift4Input("GearShift", "Gear Shift", Game::INPUT_SHIFT4,  shift1, shift2, shift3, shift4, shiftN, gearShiftUp, gearShiftDown);
+	gearShift4 = AddGearShift4Input("GearShift", "Gear Shift", Game::INPUT_SHIFT4, shift1, shift2, shift3, shift4, shiftN, gearShiftUp, gearShiftDown);
 
 	// Racing Game 4 VR View Buttons
-	vr[0]              = AddSwitchInput("VR1", "VR1", Game::INPUT_VR4, "NONE");
-	vr[1]              = AddSwitchInput("VR2", "VR2", Game::INPUT_VR4, "NONE");
-	vr[2]              = AddSwitchInput("VR3", "VR3", Game::INPUT_VR4, "NONE");
-	vr[3]              = AddSwitchInput("VR4", "VR4", Game::INPUT_VR4, "NONE");
+	vr[0] = AddSwitchInput("VR1", "VR1", Game::INPUT_VR4, "NONE");
+	vr[1] = AddSwitchInput("VR2", "VR2", Game::INPUT_VR4, "NONE");
+	vr[2] = AddSwitchInput("VR3", "VR3", Game::INPUT_VR4, "NONE");
+	vr[3] = AddSwitchInput("VR4", "VR4", Game::INPUT_VR4, "NONE");
 
 	// Racing Game Single View Change Button
-	viewChange         = AddSwitchInput("ViewChange", "View Change", Game::INPUT_VIEWCHANGE, "NONE");
+	viewChange = AddSwitchInput("ViewChange", "View Change", Game::INPUT_VIEWCHANGE, "NONE");
 
 	// Racing Game Handbrake
-	handBrake          = AddSwitchInput("HandBrake",  "Hand Brake",  Game::INPUT_HANDBRAKE, "NONE");
+	handBrake = AddSwitchInput("HandBrake", "Hand Brake", Game::INPUT_HANDBRAKE, "NONE");
 
 	// Harley Davidson Controls
-	rearBrake          = AddAnalogInput("RearBrake",   "Rear Brake",      Game::INPUT_HARLEY, "NONE");
-	musicSelect        = AddSwitchInput("MusicSelect", "Music Selection", Game::INPUT_HARLEY, "NONE");
+	rearBrake = AddAnalogInput("RearBrake", "Rear Brake", Game::INPUT_HARLEY, "NONE");
+	musicSelect = AddSwitchInput("MusicSelect", "Music Selection", Game::INPUT_HARLEY, "NONE");
 
 	// Virtual On Controls
-	twinJoyTurnLeft    = AddSwitchInput("TwinJoyTurnLeft",    "Macro Turn Left",    	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyTurnRight   = AddSwitchInput("TwinJoyTurnRight",   "Macro Turn Right",   	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyForward     = AddSwitchInput("TwinJoyForward",     "Macro Forward",      	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyReverse     = AddSwitchInput("TwinJoyReverse",     "Macro Reverse",      	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyStrafeLeft  = AddSwitchInput("TwinJoyStrafeLeft",  "Macro Strafe Left",  	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyStrafeRight = AddSwitchInput("TwinJoyStrafeRight", "Macro Strafe Right", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyJump        = AddSwitchInput("TwinJoyJump",        "Macro Jump",         	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyCrouch      = AddSwitchInput("TwinJoyCrouch",      "Macro Crouch",       	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyLeft1	     = AddSwitchInput("TwinJoyLeft1",       "Left Joystick Left", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyLeft2	     = AddSwitchInput("TwinJoyLeft2",       "Right Joystick Left",	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyRight1	     = AddSwitchInput("TwinJoyRight1",      "Left Joystick Right", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyRight2	     = AddSwitchInput("TwinJoyRight2",      "Right Joystick Right", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyUp1	   	   = AddSwitchInput("TwinJoyUp1",         "Left Joystick Up", 		Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyUp2	   	   = AddSwitchInput("TwinJoyUp2",         "Right Joystick Up", 		Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyDown1	     = AddSwitchInput("TwinJoyDown1",       "Left Joystick Down", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyDown2	     = AddSwitchInput("TwinJoyDown2",       "Right Joystick Down", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyShot1       = AddSwitchInput("TwinJoyShot1",       "Left Shot Trigger",  	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyShot2       = AddSwitchInput("TwinJoyShot2",       "Right Shot Trigger", 	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyTurbo1      = AddSwitchInput("TwinJoyTurbo1",      "Left Turbo",         	Game::INPUT_TWIN_JOYSTICKS, "NONE");
-	twinJoyTurbo2      = AddSwitchInput("TwinJoyTurbo2",      "Right Turbo",        	Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyTurnLeft = AddSwitchInput("TwinJoyTurnLeft", "Macro Turn Left", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyTurnRight = AddSwitchInput("TwinJoyTurnRight", "Macro Turn Right", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyForward = AddSwitchInput("TwinJoyForward", "Macro Forward", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyReverse = AddSwitchInput("TwinJoyReverse", "Macro Reverse", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyStrafeLeft = AddSwitchInput("TwinJoyStrafeLeft", "Macro Strafe Left", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyStrafeRight = AddSwitchInput("TwinJoyStrafeRight", "Macro Strafe Right", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyJump = AddSwitchInput("TwinJoyJump", "Macro Jump", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyCrouch = AddSwitchInput("TwinJoyCrouch", "Macro Crouch", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyLeft1 = AddSwitchInput("TwinJoyLeft1", "Left Joystick Left", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyLeft2 = AddSwitchInput("TwinJoyLeft2", "Right Joystick Left", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyRight1 = AddSwitchInput("TwinJoyRight1", "Left Joystick Right", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyRight2 = AddSwitchInput("TwinJoyRight2", "Right Joystick Right", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyUp1 = AddSwitchInput("TwinJoyUp1", "Left Joystick Up", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyUp2 = AddSwitchInput("TwinJoyUp2", "Right Joystick Up", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyDown1 = AddSwitchInput("TwinJoyDown1", "Left Joystick Down", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyDown2 = AddSwitchInput("TwinJoyDown2", "Right Joystick Down", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyShot1 = AddSwitchInput("TwinJoyShot1", "Left Shot Trigger", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyShot2 = AddSwitchInput("TwinJoyShot2", "Right Shot Trigger", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyTurbo1 = AddSwitchInput("TwinJoyTurbo1", "Left Turbo", Game::INPUT_TWIN_JOYSTICKS, "NONE");
+	twinJoyTurbo2 = AddSwitchInput("TwinJoyTurbo2", "Right Turbo", Game::INPUT_TWIN_JOYSTICKS, "NONE");
 
 	// Analog Joystick
-	auto analogJoyLeft  = AddAnalogInput("AnalogJoyLeft",  "Analog Left",  Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	auto analogJoyLeft = AddAnalogInput("AnalogJoyLeft", "Analog Left", Game::INPUT_ANALOG_JOYSTICK, "NONE");
 	auto analogJoyRight = AddAnalogInput("AnalogJoyRight", "Analog Right", Game::INPUT_ANALOG_JOYSTICK, "NONE");
-	auto analogJoyUp    = AddAnalogInput("AnalogJoyUp",    "Analog Up",    Game::INPUT_ANALOG_JOYSTICK, "NONE");
-	auto analogJoyDown  = AddAnalogInput("AnalogJoyDown",  "Analog Down",  Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	auto analogJoyUp = AddAnalogInput("AnalogJoyUp", "Analog Up", Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	auto analogJoyDown = AddAnalogInput("AnalogJoyDown", "Analog Down", Game::INPUT_ANALOG_JOYSTICK, "NONE");
 
-	analogJoyX         = AddAxisInput  ("AnalogJoyX",        "Analog X-Axis",    Game::INPUT_ANALOG_JOYSTICK, "NONE", analogJoyLeft, analogJoyRight);
-	analogJoyY         = AddAxisInput  ("AnalogJoyY",        "Analog Y-Axis",    Game::INPUT_ANALOG_JOYSTICK, "NONE", analogJoyUp,   analogJoyDown);
-	analogJoyTrigger1  = AddSwitchInput("AnalogJoyTrigger",  "Trigger Button 1", Game::INPUT_ANALOG_JOYSTICK, "NONE");
-	analogJoyTrigger2  = AddSwitchInput("AnalogJoyTrigger2", "Trigger Button 2", Game::INPUT_ANALOG_JOYSTICK, "NONE");
-	analogJoyEvent1    = AddSwitchInput("AnalogJoyEvent",    "Event Button 1",   Game::INPUT_ANALOG_JOYSTICK, "NONE");
-	analogJoyEvent2    = AddSwitchInput("AnalogJoyEvent2",   "Event Button 2",   Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	analogJoyX = AddAxisInput("AnalogJoyX", "Analog X-Axis", Game::INPUT_ANALOG_JOYSTICK, "NONE", analogJoyLeft, analogJoyRight);
+	analogJoyY = AddAxisInput("AnalogJoyY", "Analog Y-Axis", Game::INPUT_ANALOG_JOYSTICK, "NONE", analogJoyUp, analogJoyDown);
+	analogJoyTrigger1 = AddSwitchInput("AnalogJoyTrigger", "Trigger Button 1", Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	analogJoyTrigger2 = AddSwitchInput("AnalogJoyTrigger2", "Trigger Button 2", Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	analogJoyEvent1 = AddSwitchInput("AnalogJoyEvent", "Event Button 1", Game::INPUT_ANALOG_JOYSTICK, "NONE");
+	analogJoyEvent2 = AddSwitchInput("AnalogJoyEvent2", "Event Button 2", Game::INPUT_ANALOG_JOYSTICK, "NONE");
 
 	// Light guns
-	auto gun1Left  = AddAnalogInput("GunLeft",  "P1 Gun Left",  Game::INPUT_GUN1, "NONE");
+	auto gun1Left = AddAnalogInput("GunLeft", "P1 Gun Left", Game::INPUT_GUN1, "NONE");
 	auto gun1Right = AddAnalogInput("GunRight", "P1 Gun Right", Game::INPUT_GUN1, "NONE");
-	auto gun1Up    = AddAnalogInput("GunUp",    "P1 Gun Up",    Game::INPUT_GUN1, "NONE");
-	auto gun1Down  = AddAnalogInput("GunDown",  "P1 Gun Down",  Game::INPUT_GUN1, "NONE");
+	auto gun1Up = AddAnalogInput("GunUp", "P1 Gun Up", Game::INPUT_GUN1, "NONE");
+	auto gun1Down = AddAnalogInput("GunDown", "P1 Gun Down", Game::INPUT_GUN1, "NONE");
 
-	gunX[0]            = AddAxisInput("GunX", "P1 Gun X-Axis", Game::INPUT_GUN1, "NONE", gun1Left, gun1Right, 150, 400, 651); // normalize to [150,651]
-	gunY[0]            = AddAxisInput("GunY", "P1 Gun Y-Axis", Game::INPUT_GUN1, "NONE", gun1Up,   gun1Down,  80,  272, 465); // normalize to [80,465]
+	gunX[0] = AddAxisInput("GunX", "P1 Gun X-Axis", Game::INPUT_GUN1, "NONE", gun1Left, gun1Right, 150, 400, 651); // normalize to [150,651]
+	gunY[0] = AddAxisInput("GunY", "P1 Gun Y-Axis", Game::INPUT_GUN1, "NONE", gun1Up, gun1Down, 80, 272, 465);	   // normalize to [80,465]
 
-	auto gun1Trigger   = AddSwitchInput("Trigger",   "P1 Trigger",          Game::INPUT_GUN1, "NONE");
+	auto gun1Trigger = AddSwitchInput("Trigger", "P1 Trigger", Game::INPUT_GUN1, "NONE");
 	auto gun1Offscreen = AddSwitchInput("Offscreen", "P1 Point Off-screen", Game::INPUT_GUN1, "NONE");
 
-	trigger[0]         = AddTriggerInput("AutoTrigger", "P1 Auto Trigger", Game::INPUT_GUN1, gun1Trigger, gun1Offscreen);
+	trigger[0] = AddTriggerInput("AutoTrigger", "P1 Auto Trigger", Game::INPUT_GUN1, gun1Trigger, gun1Offscreen);
 
-	auto gun2Left  = AddAnalogInput("GunLeft2",  "P2 Gun Left",  Game::INPUT_GUN2, "NONE");
+	auto gun2Left = AddAnalogInput("GunLeft2", "P2 Gun Left", Game::INPUT_GUN2, "NONE");
 	auto gun2Right = AddAnalogInput("GunRight2", "P2 Gun Right", Game::INPUT_GUN2, "NONE");
-	auto gun2Up    = AddAnalogInput("GunUp2",    "P2 Gun Up",    Game::INPUT_GUN2, "NONE");
-	auto gun2Down  = AddAnalogInput("GunDown2",  "P2 Gun Down",  Game::INPUT_GUN2, "NONE");
+	auto gun2Up = AddAnalogInput("GunUp2", "P2 Gun Up", Game::INPUT_GUN2, "NONE");
+	auto gun2Down = AddAnalogInput("GunDown2", "P2 Gun Down", Game::INPUT_GUN2, "NONE");
 
-	gunX[1]            = AddAxisInput("GunX2", "P2 Gun X-Axis", Game::INPUT_GUN2, "NONE", gun2Left, gun2Right, 150, 400, 651); // normalize to [150,651]
-	gunY[1]            = AddAxisInput("GunY2", "P2 Gun Y-Axis", Game::INPUT_GUN2, "NONE", gun2Up,   gun2Down,  80,  272, 465); // normalize to [80,465]
+	gunX[1] = AddAxisInput("GunX2", "P2 Gun X-Axis", Game::INPUT_GUN2, "NONE", gun2Left, gun2Right, 150, 400, 651); // normalize to [150,651]
+	gunY[1] = AddAxisInput("GunY2", "P2 Gun Y-Axis", Game::INPUT_GUN2, "NONE", gun2Up, gun2Down, 80, 272, 465);		// normalize to [80,465]
 
-	auto gun2Trigger   = AddSwitchInput("Trigger2",   "P2 Trigger",          Game::INPUT_GUN2, "NONE");
+	auto gun2Trigger = AddSwitchInput("Trigger2", "P2 Trigger", Game::INPUT_GUN2, "NONE");
 	auto gun2Offscreen = AddSwitchInput("Offscreen2", "P2 Point Off-screen", Game::INPUT_GUN2, "NONE");
 
-	trigger[1]         = AddTriggerInput("AutoTrigger2", "P2 Auto Trigger", Game::INPUT_GUN2, gun2Trigger, gun2Offscreen);
+	trigger[1] = AddTriggerInput("AutoTrigger2", "P2 Auto Trigger", Game::INPUT_GUN2, gun2Trigger, gun2Offscreen);
 
 	// Analog guns
-	auto analogGun1Left  = AddAnalogInput("AnalogGunLeft",  "P1 Analog Gun Left",  Game::INPUT_ANALOG_GUN1, "NONE");
+	auto analogGun1Left = AddAnalogInput("AnalogGunLeft", "P1 Analog Gun Left", Game::INPUT_ANALOG_GUN1, "NONE");
 	auto analogGun1Right = AddAnalogInput("AnalogGunRight", "P1 Analog Gun Right", Game::INPUT_ANALOG_GUN1, "NONE");
-	auto analogGun1Up    = AddAnalogInput("AnalogGunUp",    "P1 Analog Gun Up",    Game::INPUT_ANALOG_GUN1, "NONE");
-	auto analogGun1Down  = AddAnalogInput("AnalogGunDown",  "P1 Analog Gun Down",  Game::INPUT_ANALOG_GUN1, "NONE");
+	auto analogGun1Up = AddAnalogInput("AnalogGunUp", "P1 Analog Gun Up", Game::INPUT_ANALOG_GUN1, "NONE");
+	auto analogGun1Down = AddAnalogInput("AnalogGunDown", "P1 Analog Gun Down", Game::INPUT_ANALOG_GUN1, "NONE");
 
 	analogGunX[0] = AddAxisInput("AnalogGunX", "P1 Analog Gun X-Axis", Game::INPUT_ANALOG_GUN1, "NONE", analogGun1Left, analogGun1Right, 0, 0x80, 0xFF);
-	analogGunY[0] = AddAxisInput("AnalogGunY", "P1 Analog Gun Y-Axis", Game::INPUT_ANALOG_GUN1, "NONE", analogGun1Up,   analogGun1Down,  0xFF, 0x80, 0);
+	analogGunY[0] = AddAxisInput("AnalogGunY", "P1 Analog Gun Y-Axis", Game::INPUT_ANALOG_GUN1, "NONE", analogGun1Up, analogGun1Down, 0xFF, 0x80, 0);
 
-	analogTriggerLeft[0]  = AddSwitchInput("AnalogTriggerLeft",  "P1 Analog Gun Left Trigger",  Game::INPUT_ANALOG_GUN1, "NONE");
+	analogTriggerLeft[0] = AddSwitchInput("AnalogTriggerLeft", "P1 Analog Gun Left Trigger", Game::INPUT_ANALOG_GUN1, "NONE");
 	analogTriggerRight[0] = AddSwitchInput("AnalogTriggerRight", "P1 Analog Gun Right Trigger", Game::INPUT_ANALOG_GUN1, "NONE");
 
-	auto analogGun2Left  = AddAnalogInput("AnalogGunLeft2",  "P2 Analog Gun Left",  Game::INPUT_ANALOG_GUN2, "NONE");
+	auto analogGun2Left = AddAnalogInput("AnalogGunLeft2", "P2 Analog Gun Left", Game::INPUT_ANALOG_GUN2, "NONE");
 	auto analogGun2Right = AddAnalogInput("AnalogGunRight2", "P2 Analog Gun Right", Game::INPUT_ANALOG_GUN2, "NONE");
-	auto analogGun2Up    = AddAnalogInput("AnalogGunUp2",    "P2 Analog Gun Up",    Game::INPUT_ANALOG_GUN2, "NONE");
-	auto analogGun2Down  = AddAnalogInput("AnalogGunDown2",  "P2 Analog Gun Down",  Game::INPUT_ANALOG_GUN2, "NONE");
+	auto analogGun2Up = AddAnalogInput("AnalogGunUp2", "P2 Analog Gun Up", Game::INPUT_ANALOG_GUN2, "NONE");
+	auto analogGun2Down = AddAnalogInput("AnalogGunDown2", "P2 Analog Gun Down", Game::INPUT_ANALOG_GUN2, "NONE");
 
 	analogGunX[1] = AddAxisInput("AnalogGunX2", "P2 Analog Gun X-Axis", Game::INPUT_ANALOG_GUN2, "NONE", analogGun2Left, analogGun2Right, 0, 0x80, 0xFF);
-	analogGunY[1] = AddAxisInput("AnalogGunY2", "P2 Analog Gun Y-Axis", Game::INPUT_ANALOG_GUN2, "NONE", analogGun2Up,   analogGun2Down,  0xFF, 0x80, 0);
+	analogGunY[1] = AddAxisInput("AnalogGunY2", "P2 Analog Gun Y-Axis", Game::INPUT_ANALOG_GUN2, "NONE", analogGun2Up, analogGun2Down, 0xFF, 0x80, 0);
 
-	analogTriggerLeft[1]  = AddSwitchInput("AnalogTriggerLeft2",  "P2 Analog Gun Left Trigger",  Game::INPUT_ANALOG_GUN2, "NONE");
+	analogTriggerLeft[1] = AddSwitchInput("AnalogTriggerLeft2", "P2 Analog Gun Left Trigger", Game::INPUT_ANALOG_GUN2, "NONE");
 	analogTriggerRight[1] = AddSwitchInput("AnalogTriggerRight2", "P2 Analog Gun Right Trigger", Game::INPUT_ANALOG_GUN2, "NONE");
 
 	// Ski controls
-	auto skiLeft  = AddAnalogInput("SkiLeft",  "Ski Champ Left",  Game::INPUT_SKI, "NONE");
+	auto skiLeft = AddAnalogInput("SkiLeft", "Ski Champ Left", Game::INPUT_SKI, "NONE");
 	auto skiRight = AddAnalogInput("SkiRight", "Ski Champ Right", Game::INPUT_SKI, "NONE");
-	auto skiUp    = AddAnalogInput("SkiUp",    "Ski Champ Up",    Game::INPUT_SKI, "NONE");
-	auto skiDown  = AddAnalogInput("SkiDown",  "Ski Champ Down",  Game::INPUT_SKI, "NONE");
+	auto skiUp = AddAnalogInput("SkiUp", "Ski Champ Up", Game::INPUT_SKI, "NONE");
+	auto skiDown = AddAnalogInput("SkiDown", "Ski Champ Down", Game::INPUT_SKI, "NONE");
 
-	skiX          = AddAxisInput  ("SkiX",         "Ski Champ X-Axis",     Game::INPUT_SKI, "NONE", skiLeft, skiRight, 0xFF, 0x80, 0);
-	skiY          = AddAxisInput  ("SkiY",         "Ski Champ Y-Axis",     Game::INPUT_SKI, "NONE", skiUp,   skiDown);
-	skiPollLeft   = AddSwitchInput("SkiPollLeft",  "Ski Champ Poll Left",  Game::INPUT_SKI, "NONE");
-	skiPollRight  = AddSwitchInput("SkiPollRight", "Ski Champ Poll Right", Game::INPUT_SKI, "NONE");
-	skiSelect1    = AddSwitchInput("SkiSelect1",   "Ski Champ Select 1",   Game::INPUT_SKI, "NONE");
-	skiSelect2    = AddSwitchInput("SkiSelect2",   "Ski Champ Select 2",   Game::INPUT_SKI, "NONE");
-	skiSelect3    = AddSwitchInput("SkiSelect3",   "Ski Champ Select 3",   Game::INPUT_SKI, "NONE");
+	skiX = AddAxisInput("SkiX", "Ski Champ X-Axis", Game::INPUT_SKI, "NONE", skiLeft, skiRight, 0xFF, 0x80, 0);
+	skiY = AddAxisInput("SkiY", "Ski Champ Y-Axis", Game::INPUT_SKI, "NONE", skiUp, skiDown);
+	skiPollLeft = AddSwitchInput("SkiPollLeft", "Ski Champ Poll Left", Game::INPUT_SKI, "NONE");
+	skiPollRight = AddSwitchInput("SkiPollRight", "Ski Champ Poll Right", Game::INPUT_SKI, "NONE");
+	skiSelect1 = AddSwitchInput("SkiSelect1", "Ski Champ Select 1", Game::INPUT_SKI, "NONE");
+	skiSelect2 = AddSwitchInput("SkiSelect2", "Ski Champ Select 2", Game::INPUT_SKI, "NONE");
+	skiSelect3 = AddSwitchInput("SkiSelect3", "Ski Champ Select 3", Game::INPUT_SKI, "NONE");
 
 	// Magical truck controls
-	auto magicalLeverUp1   = AddAnalogInput("MagicalLeverUp1",   "P1 Magical Lever Up",    Game::INPUT_MAGTRUCK, "NONE");
-	auto magicalLeverDown1 = AddAnalogInput("MagicalLeverDown1", "P1 Magical Lever Down",  Game::INPUT_MAGTRUCK, "NONE");
-	auto magicalLeverUp2   = AddAnalogInput("MagicalLeverUp2",   "P2 Magical Lever Up",    Game::INPUT_MAGTRUCK, "NONE");
-	auto magicalLeverDown2 = AddAnalogInput("MagicalLeverDown2", "P2 Magical Lever Down",  Game::INPUT_MAGTRUCK, "NONE");
+	auto magicalLeverUp1 = AddAnalogInput("MagicalLeverUp1", "P1 Magical Lever Up", Game::INPUT_MAGTRUCK, "NONE");
+	auto magicalLeverDown1 = AddAnalogInput("MagicalLeverDown1", "P1 Magical Lever Down", Game::INPUT_MAGTRUCK, "NONE");
+	auto magicalLeverUp2 = AddAnalogInput("MagicalLeverUp2", "P2 Magical Lever Up", Game::INPUT_MAGTRUCK, "NONE");
+	auto magicalLeverDown2 = AddAnalogInput("MagicalLeverDown2", "P2 Magical Lever Down", Game::INPUT_MAGTRUCK, "NONE");
 
-	magicalLever1 = AddAxisInput(   "MagicalLever1", "P1 Magical Lever",  Game::INPUT_MAGTRUCK, "NONE", magicalLeverUp1, magicalLeverDown1, 0xFF, 0x80, 0);
-	magicalLever2 = AddAxisInput(   "MagicalLever2", "P2 Magical Lever",  Game::INPUT_MAGTRUCK, "NONE", magicalLeverUp2, magicalLeverDown2, 0xFF, 0x80, 0);
-	magicalPedal1 = AddSwitchInput( "MagicalPedal1", "P1 Magical Pedal",  Game::INPUT_MAGTRUCK, "NONE");
-	magicalPedal2 = AddSwitchInput( "MagicalPedal2", "P2 Magical Pedal",  Game::INPUT_MAGTRUCK, "NONE");
+	magicalLever1 = AddAxisInput("MagicalLever1", "P1 Magical Lever", Game::INPUT_MAGTRUCK, "NONE", magicalLeverUp1, magicalLeverDown1, 0xFF, 0x80, 0);
+	magicalLever2 = AddAxisInput("MagicalLever2", "P2 Magical Lever", Game::INPUT_MAGTRUCK, "NONE", magicalLeverUp2, magicalLeverDown2, 0xFF, 0x80, 0);
+	magicalPedal1 = AddSwitchInput("MagicalPedal1", "P1 Magical Pedal", Game::INPUT_MAGTRUCK, "NONE");
+	magicalPedal2 = AddSwitchInput("MagicalPedal2", "P2 Magical Pedal", Game::INPUT_MAGTRUCK, "NONE");
 
 	// Sega Bass Fishing controls
-	auto fishingRodLeft    = AddAnalogInput("FishingRodLeft",    "Rod Left",     Game::INPUT_FISHING, "NONE");
-	auto fishingRodRight   = AddAnalogInput("FishingRodRight",   "Rod Right",    Game::INPUT_FISHING, "NONE");
-	auto fishingRodUp      = AddAnalogInput("FishingRodUp",      "Rod Up",       Game::INPUT_FISHING, "NONE");
-	auto fishingRodDown    = AddAnalogInput("FishingRodDown",    "Rod Down",     Game::INPUT_FISHING, "NONE");
-	auto fishingStickLeft  = AddAnalogInput("FishingStickLeft",  "Stick Left",   Game::INPUT_FISHING, "NONE");
-	auto fishingStickRight = AddAnalogInput("FishingStickRight", "Stick Right",  Game::INPUT_FISHING, "NONE");
-	auto fishingStickUp    = AddAnalogInput("FishingStickUp",    "Stick Up",     Game::INPUT_FISHING, "NONE");
-	auto fishingStickDown  = AddAnalogInput("FishingStickDown",  "Stick Down",   Game::INPUT_FISHING, "NONE");
+	auto fishingRodLeft = AddAnalogInput("FishingRodLeft", "Rod Left", Game::INPUT_FISHING, "NONE");
+	auto fishingRodRight = AddAnalogInput("FishingRodRight", "Rod Right", Game::INPUT_FISHING, "NONE");
+	auto fishingRodUp = AddAnalogInput("FishingRodUp", "Rod Up", Game::INPUT_FISHING, "NONE");
+	auto fishingRodDown = AddAnalogInput("FishingRodDown", "Rod Down", Game::INPUT_FISHING, "NONE");
+	auto fishingStickLeft = AddAnalogInput("FishingStickLeft", "Stick Left", Game::INPUT_FISHING, "NONE");
+	auto fishingStickRight = AddAnalogInput("FishingStickRight", "Stick Right", Game::INPUT_FISHING, "NONE");
+	auto fishingStickUp = AddAnalogInput("FishingStickUp", "Stick Up", Game::INPUT_FISHING, "NONE");
+	auto fishingStickDown = AddAnalogInput("FishingStickDown", "Stick Down", Game::INPUT_FISHING, "NONE");
 
-	fishingRodX   = AddAxisInput(   "FishingRodX",    "Rod X-Axis",     Game::INPUT_FISHING, "NONE", fishingRodLeft, fishingRodRight, 0, 0x80, 0xFF);
-	fishingRodY   = AddAxisInput(   "FishingRodY",    "Rod Y-Axis",     Game::INPUT_FISHING, "NONE", fishingRodUp, fishingRodDown, 0, 0x80, 0xFF);
-	fishingReel   = AddAnalogInput( "FishingReel",    "Reel Speed",     Game::INPUT_FISHING, "NONE");
-	fishingStickX = AddAxisInput(   "FishingStickX",  "Stick X-Axis",   Game::INPUT_FISHING, "NONE", fishingStickLeft, fishingStickRight, 0, 0x80, 0xFF);
-	fishingStickY = AddAxisInput(   "FishingStickY",  "Stick Y-Axis",   Game::INPUT_FISHING, "NONE", fishingStickUp, fishingStickDown, 0, 0x80, 0xFF);
-	fishingCast   = AddSwitchInput( "FishingCast",    "Cast",           Game::INPUT_FISHING, "NONE");
-	fishingSelect = AddSwitchInput( "FishingSelect",  "Select",         Game::INPUT_FISHING, "NONE");
-	fishingTension= AddAnalogInput("FishingTension", "Tension",	      Game::INPUT_FISHING, "NONE"); // getbass only
+	fishingRodX = AddAxisInput("FishingRodX", "Rod X-Axis", Game::INPUT_FISHING, "NONE", fishingRodLeft, fishingRodRight, 0, 0x80, 0xFF);
+	fishingRodY = AddAxisInput("FishingRodY", "Rod Y-Axis", Game::INPUT_FISHING, "NONE", fishingRodUp, fishingRodDown, 0, 0x80, 0xFF);
+	fishingReel = AddAnalogInput("FishingReel", "Reel Speed", Game::INPUT_FISHING, "NONE");
+	fishingStickX = AddAxisInput("FishingStickX", "Stick X-Axis", Game::INPUT_FISHING, "NONE", fishingStickLeft, fishingStickRight, 0, 0x80, 0xFF);
+	fishingStickY = AddAxisInput("FishingStickY", "Stick Y-Axis", Game::INPUT_FISHING, "NONE", fishingStickUp, fishingStickDown, 0, 0x80, 0xFF);
+	fishingCast = AddSwitchInput("FishingCast", "Cast", Game::INPUT_FISHING, "NONE");
+	fishingSelect = AddSwitchInput("FishingSelect", "Select", Game::INPUT_FISHING, "NONE");
+	fishingTension = AddAnalogInput("FishingTension", "Tension", Game::INPUT_FISHING, "NONE"); // getbass only
 }
 
 CInputs::~CInputs()
@@ -312,7 +303,7 @@ CInputs::~CInputs()
 }
 
 std::shared_ptr<CSwitchInput> CInputs::AddSwitchInput(const char *id, const char *label, unsigned gameFlags, const char *defaultMapping,
-	UINT16 offVal, UINT16 onVal)
+													  UINT16 offVal, UINT16 onVal)
 {
 	auto input = std::shared_ptr<CSwitchInput>(new CSwitchInput(id, label, gameFlags, defaultMapping, offVal, onVal));
 	m_inputs.push_back(input);
@@ -320,7 +311,7 @@ std::shared_ptr<CSwitchInput> CInputs::AddSwitchInput(const char *id, const char
 }
 
 std::shared_ptr<CAnalogInput> CInputs::AddAnalogInput(const char *id, const char *label, unsigned gameFlags, const char *defaultMapping,
-	UINT16 minVal, UINT16 maxVal)
+													  UINT16 minVal, UINT16 maxVal)
 {
 	auto input = std::shared_ptr<CAnalogInput>(new CAnalogInput(id, label, gameFlags, defaultMapping, minVal, maxVal));
 	m_inputs.push_back(input);
@@ -328,7 +319,7 @@ std::shared_ptr<CAnalogInput> CInputs::AddAnalogInput(const char *id, const char
 }
 
 std::shared_ptr<CAxisInput> CInputs::AddAxisInput(const char *id, const char *label, unsigned gameFlags, const char *defaultMapping,
-	std::shared_ptr<CAnalogInput> axisNeg, std::shared_ptr<CAnalogInput> axisPos, UINT16 minVal, UINT16 offVal, UINT16 maxVal)
+												  std::shared_ptr<CAnalogInput> axisNeg, std::shared_ptr<CAnalogInput> axisPos, UINT16 minVal, UINT16 offVal, UINT16 maxVal)
 {
 	auto input = std::shared_ptr<CAxisInput>(new CAxisInput(id, label, gameFlags, defaultMapping, axisNeg, axisPos, minVal, offVal, maxVal));
 	m_inputs.push_back(input);
@@ -336,7 +327,7 @@ std::shared_ptr<CAxisInput> CInputs::AddAxisInput(const char *id, const char *la
 }
 
 std::shared_ptr<CGearShift4Input> CInputs::AddGearShift4Input(const char *id, const char *label, unsigned gameFlags,
-	std::shared_ptr<CSwitchInput> shift1, std::shared_ptr<CSwitchInput> shift2, std::shared_ptr<CSwitchInput> shift3, std::shared_ptr<CSwitchInput> shift4, std::shared_ptr<CSwitchInput> shiftN, std::shared_ptr<CSwitchInput> shiftUp, std::shared_ptr<CSwitchInput> shiftDown)
+															  std::shared_ptr<CSwitchInput> shift1, std::shared_ptr<CSwitchInput> shift2, std::shared_ptr<CSwitchInput> shift3, std::shared_ptr<CSwitchInput> shift4, std::shared_ptr<CSwitchInput> shiftN, std::shared_ptr<CSwitchInput> shiftUp, std::shared_ptr<CSwitchInput> shiftDown)
 {
 	auto input = std::shared_ptr<CGearShift4Input>(new CGearShift4Input(id, label, gameFlags, shift1, shift2, shift3, shift4, shiftN, shiftUp, shiftDown));
 	m_inputs.push_back(input);
@@ -344,7 +335,7 @@ std::shared_ptr<CGearShift4Input> CInputs::AddGearShift4Input(const char *id, co
 }
 
 std::shared_ptr<CTriggerInput> CInputs::AddTriggerInput(const char *id, const char *label, unsigned gameFlags,
-	std::shared_ptr<CSwitchInput> _trigger, std::shared_ptr<CSwitchInput> offscreen, UINT16 offVal, UINT16 onVal)
+														std::shared_ptr<CSwitchInput> _trigger, std::shared_ptr<CSwitchInput> offscreen, UINT16 offVal, UINT16 onVal)
 {
 	auto input = std::shared_ptr<CTriggerInput>(new CTriggerInput(id, label, gameFlags, _trigger, offscreen, offVal, onVal));
 	m_inputs.push_back(input);
@@ -432,7 +423,8 @@ bool CInputs::Initialize()
 		return false;
 
 	// Initialize all the inputs
-	for (auto& i : m_inputs) {
+	for (auto &i : m_inputs)
+	{
 		i->Initialize(m_system);
 	}
 
@@ -443,7 +435,8 @@ void CInputs::LoadFromConfig(const Util::Config::Node &config)
 {
 	m_system->LoadFromConfig(config);
 
-	for (auto& i : m_inputs) {
+	for (auto &i : m_inputs)
+	{
 		i->LoadFromConfig(config);
 	}
 }
@@ -452,7 +445,8 @@ void CInputs::StoreToConfig(Util::Config::Node *config)
 {
 	m_system->StoreToConfig(config);
 
-	for (auto& i : m_inputs) {
+	for (auto &i : m_inputs)
+	{
 		i->StoreToConfig(config);
 	}
 }
@@ -493,7 +487,7 @@ bool CInputs::ConfigureInputs(const Game &game)
 	const char *groupLabel = nullptr;
 
 	bool cancelled = false;
-		
+
 	// Loop through all the inputs to be configured
 	index = 0;
 	while (index < toConfigure.size())
@@ -509,13 +503,13 @@ bool CInputs::ConfigureInputs(const Game &game)
 			printf("%s:\n", groupLabel);
 		}
 
-Redisplay:
+	Redisplay:
 		// Print the input label, current input mapping and available options
 		if (index > 0)
 			printf(" %s [%s]: Ret/c/s/a/r/Up/Down/b/h/q/Esc? ", input->label, input->GetMapping());
 		else
 			printf(" %s [%s]: Ret/c/s/a/r/Down/h/b/q/Esc? ", input->label, input->GetMapping());
-		fflush(stdout);	// required on terminals that use buffering
+		fflush(stdout); // required on terminals that use buffering
 
 		// Loop until user has selected a valid option
 		bool done = false;
@@ -523,7 +517,7 @@ Redisplay:
 		{
 			char mapping[50];
 			// Wait for input from user
-			if (!m_system->ReadMapping(mapping, 50, false, READ_KEYBOARD|READ_MERGE, uiExit->GetMapping()))
+			if (!m_system->ReadMapping(mapping, 50, false, READ_KEYBOARD | READ_MERGE, uiExit->GetMapping()))
 			{
 				// If user pressed aborted input, then undo all changes and finish configuration
 				index = 0;
@@ -541,7 +535,7 @@ Redisplay:
 			{
 				// Set the input mapping
 				printf("Setting... ");
-				fflush(stdout);	// required on terminals that use buffering
+				fflush(stdout); // required on terminals that use buffering
 				if (input->Configure(false, uiExit->GetMapping()))
 				{
 					puts(input->GetMapping());
@@ -559,7 +553,7 @@ Redisplay:
 			{
 				// Append to the input mapping(s)
 				printf("Appending... ");
-				fflush(stdout);	// required on terminals that use buffering
+				fflush(stdout); // required on terminals that use buffering
 				if (input->Configure(true, uiExit->GetMapping()))
 					puts(input->GetMapping());
 				else
@@ -611,7 +605,7 @@ Redisplay:
 				CalibrateJoysticks();
 				puts("");
 				goto Redisplay;
-			}	
+			}
 			else if (stricmp(mapping, "KEY_I") == 0)
 			{
 				// Print info about input system
@@ -646,17 +640,20 @@ bool CInputs::ConfigureInputs(const Game &game, unsigned dispX, unsigned dispY, 
 	return ConfigureInputs(game);
 }
 
-std::vector<std::shared_ptr<CInput>> CInputs::GetGameInputs(const Game& game)
+std::vector<std::shared_ptr<CInput>> CInputs::GetGameInputs(const Game &game)
 {
 	std::vector<std::shared_ptr<CInput>> inputs;
 
 	uint32_t gameFlags = Game::INPUT_ALL;
-	if (!game.name.empty()) {
+	if (!game.name.empty())
+	{
 		gameFlags = game.inputs;
 	}
 
-	for (auto& i : m_inputs) {
-		if (i->IsConfigurable() && i->gameFlags & gameFlags) {
+	for (auto &i : m_inputs)
+	{
+		if (i->IsConfigurable() && i->gameFlags & gameFlags)
+		{
 			inputs.emplace_back(i);
 		}
 	}
@@ -682,7 +679,7 @@ void CInputs::CalibrateJoysticks()
 		}
 
 		char mapping[50];
-		while (m_system->ReadMapping(mapping, 50, false, READ_KEYBOARD|READ_MERGE, uiExit->GetMapping()))
+		while (m_system->ReadMapping(mapping, 50, false, READ_KEYBOARD | READ_MERGE, uiExit->GetMapping()))
 		{
 			if (strlen(mapping) != 5 || strncmp(mapping, "KEY_", 4) != 0)
 				continue;
@@ -718,12 +715,12 @@ void CInputs::CalibrateJoystick(int joyNum)
 		if (!joyDetails->hasAxis[axisNum])
 			continue;
 		axisNumList.push_back(axisNum);
-		printf(" %u: %s\n", (unsigned) axisNumList.size(), joyDetails->axisName[axisNum]);
+		printf(" %u: %s\n", (unsigned)axisNumList.size(), joyDetails->axisName[axisNum]);
 	}
 	printf(" 0: Unsure - help me choose...\n");
-	
+
 	char mapping[50];
-	while (m_system->ReadMapping(mapping, 50, false, READ_KEYBOARD|READ_MERGE, uiExit->GetMapping()))
+	while (m_system->ReadMapping(mapping, 50, false, READ_KEYBOARD | READ_MERGE, uiExit->GetMapping()))
 	{
 		unsigned axisNum;
 		if (stricmp(mapping, "KEY_0") == 0)
@@ -787,221 +784,92 @@ void CInputs::PrintInputs(const Game *game)
 
 	puts("");
 }
-/*
-bool CInputs::Poll(const Game* game,
-                   unsigned dispX, unsigned dispY,
-                   unsigned dispW, unsigned dispH)
+
+bool CInputs::Poll(const Game *game, unsigned dispX, unsigned dispY, unsigned dispW, unsigned dispH)
 {
-    // Replay 再生中なら、毎フレーム必ず Update を先に呼ぶ
-    if (ReplayPlayer::IsPlaying())
-    {
-        ReplayPlayer::Update(g_frameCounter);
-    }
+	static int xButtonCooldown = 0;
+	static int xButtonPrev = 0; // ★追加：前回のボタン状態を保存
 
-    // Supermodel の表示座標セット
-    m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
+	m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
+	if (!m_system->Poll())
+		return false;
 
-    // SDL / OSD 入力の更新
-    if (!m_system->Poll())
-        return false;
+	if (xButtonCooldown > 0)
+	{
+		xButtonCooldown--;
+	}
 
-    uint32_t gameFlags = game ? game->inputs : Game::INPUT_ALL;
+	// --- 開始時のカウンタリセット ---
+	static bool s_wasPlaying = false;
+	static bool s_wasRecording = false;
 
-    for (auto& it : m_inputs)
-    {
-        if (!(it->IsUIInput() || (it->gameFlags & gameFlags)))
-            continue;
+	if (ReplayPlayer::IsPlaying() && !s_wasPlaying)
+	{
+		g_frameCounter = 0;
+		s_wasPlaying = true;
+	}
+	if (!ReplayPlayer::IsPlaying())
+		s_wasPlaying = false;
 
-        CInput* in = it.get();
+	if (ReplayRecorder::IsRecording() && !s_wasRecording)
+	{
+		g_frameCounter = 0;
+		s_wasRecording = true;
+	}
+	if (!ReplayRecorder::IsRecording())
+		s_wasRecording = false;
 
-        int prev = m_prevState[in];   // 前フレーム値
-        int now  = 0;
+	// --- ① 再生処理 ---
+	if (ReplayPlayer::IsPlaying())
+	{
+		ReplayPlayer::UpdateState(g_frameCounter);
+	}
 
-        if (ReplayPlayer::IsPlaying())
-        {
-            // ★ Replay の値があれば now に値を入れる
-            if (ReplayPlayer::GetValue(reinterpret_cast<uint64_t>(in), now))
-            {
-                in->value = now;   // ★ 実際に値を入れるのはここ
-            }
-            else
-            {
-                // Replay にデータが無い場合は 0（離す）
-                in->value = 0;
-            }
-        }
-        else
-        {
-            // 通常プレイ：実際の入力を読む
-            in->Poll();
-            now = in->value;
-        }
+	for (auto &it : m_inputs)
+	{
+		CInput *in = it.get();
 
-        // ★ 録画：Replay 再生中は絶対に記録しない
-        if (!ReplayPlayer::IsPlaying() &&
-            ReplayRecorder::IsRecording() &&
-            prev != now)
-        {
-            printf("[Recorder] frame=%u in=%p prev=%d now=%d\n",
-                   g_frameCounter, in, prev, now);
+		if (ReplayPlayer::IsPlaying())
+		{
+			in->value = ReplayPlayer::GetInputValue(in->id);
+			if (strcmp(in->id, "Exit UI") == 0 || in->IsUIInput())
+			{
+				in->Poll();
+			}
+		}
+		else
+		{
+			in->Poll();
 
-            ReplayRecorder::Capture(g_frameCounter, in);
-        }
+			// ★ Xボタン (Load State) の連打・押しっぱなし防止
+			if (strcmp(in->id, "Load State") == 0)
+			{
+				int currentVal = in->value; // 今の生の状態
 
-        m_prevState[in] = now;
-    }
+				// 条件：今押されている(>0) かつ 前回は離されていた(==0) かつ クールタイム終了
+				if (currentVal > 0 && xButtonPrev == 0 && xButtonCooldown == 0)
+				{
+					// この 1 フレームだけ入力を許可（in->value はそのまま）
+					xButtonCooldown = 60; // 余裕を持って 1秒(60F) ガード
+				}
+				else
+				{
+					in->value = 0;
+				}
+				xButtonPrev = currentVal;
+			}
 
-    g_frameCounter++;
-    return true;
-}
-*/
-bool CInputs::Poll(const Game* game, unsigned dispX, unsigned dispY, unsigned dispW, unsigned dispH)
-{
-    static int xButtonCooldown = 0;
-    static int xButtonPrev = 0; // ★追加：前回のボタン状態を保存
+			if (ReplayRecorder::IsRecording())
+			{
+				ReplayRecorder::Capture(g_frameCounter, in->id, in->value);
+			}
+		}
+	}
 
-    m_system->SetDisplayGeom(dispX, dispY, dispW, dispH);
-    if (!m_system->Poll()) return false;
-    
-    if (xButtonCooldown > 0) {
-        xButtonCooldown--;
-    }
-
-    // --- 開始時のカウンタリセット ---
-    static bool s_wasPlaying = false;
-    static bool s_wasRecording = false;
-
-    if (ReplayPlayer::IsPlaying() && !s_wasPlaying) {
-        g_frameCounter = 0;
-        s_wasPlaying = true;
-    }
-    if (!ReplayPlayer::IsPlaying()) s_wasPlaying = false;
-
-    if (ReplayRecorder::IsRecording() && !s_wasRecording) {
-        g_frameCounter = 0;
-        s_wasRecording = true;
-    }
-    if (!ReplayRecorder::IsRecording()) s_wasRecording = false;
-
-    // --- ① 再生処理 ---
-    if (ReplayPlayer::IsPlaying()) 
-    {
-        ReplayPlayer::UpdateState(g_frameCounter);
-    }
-
-    for (auto& it : m_inputs) 
-    {
-        CInput* in = it.get();
-
-        if (ReplayPlayer::IsPlaying()) 
-        {
-            in->value = ReplayPlayer::GetInputValue(in->id);
-        	if (strcmp(in->id, "Exit UI") == 0 || in->IsUIInput()) 
-        	{
-            // 生のデバイス状態を読み取って上書き
-            // これにより、再生中でも Esc キーなどで終了できるようになります
-            	in->Poll(); 
-        	}
-        } 
-        else 
-        {
-            in->Poll();
-            
-            // ★ Xボタン (Load State) の連打・押しっぱなし防止
-            if (strcmp(in->id, "Load State") == 0) 
-            {
-                int currentVal = in->value; // 今の生の状態
-
-                // 条件：今押されている(>0) かつ 前回は離されていた(==0) かつ クールタイム終了
-                if (currentVal > 0 && xButtonPrev == 0 && xButtonCooldown == 0) 
-                {
-                    // この 1 フレームだけ入力を許可（in->value はそのまま）
-                    xButtonCooldown = 60; // 余裕を持って 1秒(60F) ガード
-                }
-                else 
-                {
-                    // それ以外（押しっぱなし中やガード中）は 0 に書き換えて無効化
-                    in->value = 0;
-                }
-
-                // 今回の状態を保存
-                xButtonPrev = currentVal;
-            }
-
-            if (ReplayRecorder::IsRecording()) 
-            {
-                ReplayRecorder::Capture(g_frameCounter, in->id, in->value);
-            }
-        }
-    }
-
-    g_frameCounter++;
-    return true;
-}
-void ApplyReplayInput(CInput* in,
-                      const std::vector<ReplayEvent>& replayEvents)
-{
-	/*
-	if (ReplayPlayer::GetState().count(in->id)) {
-        in->value = ReplayPlayer::GetState()[in->id];
-    }
-	/*
-    for (const auto& ev : replayEvents)
-    {
-        if (strcmp(in->id, ev.id) == 0)
-        {
-            in->value = ev.value;
-            return;
-        }
-    }
-	*/
-    // 見つからなかったら 0（押されていない）
-    //in->value = 0;
-}
-void ApplyLiveInput(CInput* in)
-{
-    int prev = in->value;
-    in->Poll();
-    int now = in->value;
-
-    if (ReplayRecorder::IsRecording() && prev != now)
-    {
-        ReplayRecorder::Capture(g_frameCounter,
-                                in->id,
-                                now);
-    }
-}
-/*
-// Replay 開始時に1回だけ呼ぶ
-void BuildReplayInputMap(const std::vector<std::unique_ptr<CInput>>& inputs)
-{
-    g_replayInputMap.clear();
-
-    for (auto& it : inputs)
-    {
-        CInput* in = it.get();
-        if (!in)
-            continue;
-
-        uint64_t id = HashMapping(in->GetMapping());
-        g_replayInputMap[id] = in;
-    }
-
-    printf("[Replay] InputMap built (%zu inputs)\n",
-           g_replayInputMap.size());
+	g_frameCounter++;
+	return true;
 }
 
-// ReplayPlayer から呼ばれる
-void ApplyReplayInput(uint64_t input_id, int value)
-{
-    auto it = g_replayInputMap.find(input_id);
-    if (it == g_replayInputMap.end())
-        return;
-
-    CInput* in = it->second;
-    in->value = value;
-}
-*/
 void CInputs::DumpState(const Game *game)
 {
 	// Print header

@@ -29,20 +29,19 @@
 class TCPSend
 {
 public:
-	TCPSend(std::string& ip, int port);
+	TCPSend(std::string &ip, int port);
 	~TCPSend();
 
-	bool Send(const void* data, int length);
+	bool Send(const void *data, int length);
 	bool Connect();
 	bool Connected();
-	void analyze_packet_diff(unsigned char* current_packet, int length);
-	int compress_packet(unsigned char* current, int length, unsigned char* out_buf);
+	void analyze_packet_diff(unsigned char *current_packet, int length);
+	int compress_packet(unsigned char *current, int length, unsigned char *out_buf);
+
 private:
-
-	std::string	m_ip;
-	int			m_port;
-	TCPsocket	m_socket;		// sdl socket
-
+	std::string m_ip;
+	int m_port;
+	TCPsocket m_socket; // sdl socket
 };
 
 #endif

@@ -1,2 +1,31 @@
-#include "winuser.h"
-CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "Src/OSD/Windows/SupermodelManifest.xml"
+#pragma code_page(65001)
+#include <windows.h>
+
+1 ICON "ponmi.ico"
+
+1 24 "SupermodelManifest.xml"
+
+1 VERSIONINFO
+FILEVERSION 2026,2,6,0
+PRODUCTVERSION 2026,2,6,0
+FILEOS 0x4L
+FILETYPE 0x1L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "041104b0"
+        BEGIN
+            VALUE "CompanyName",      "BackPonBeauty"
+            VALUE "FileDescription",  "Supermodel-PonMi"
+            VALUE "FileVersion",      "20260206"
+            VALUE "InternalName",     "Supermodel-PonMi"
+            VALUE "LegalCopyright",   "Copyright (C) 2026 BackPonBeauty(背中ポン美)"
+            VALUE "ProductName",      "Supermodel-PonMi"
+            VALUE "ProductVersion",   "20260206"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x411, 1200
+    END
+END

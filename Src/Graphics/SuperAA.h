@@ -13,7 +13,7 @@
 class SuperAA
 {
 public:
-	SuperAA(int aaValue, CRTcolor CRTcolors , float scanlineStrength , int totalXRes ,int totalYRes , float barrelStrength, const char* gameTitle);
+	SuperAA(int aaValue, CRTcolor CRTcolors , int scanlineStrength , int totalXRes ,int totalYRes , int barrelStrength, const char* gameTitle);
 	~SuperAA();
 
 	void Init(int width, int height);		// width & height are real window dimensions

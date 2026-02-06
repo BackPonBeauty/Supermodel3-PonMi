@@ -4,24 +4,24 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, float scanlineStrength,int totalXRes , int totalYRes, float ubarrelStrength , const char* gameTitle) :
-    m_aa(aaValue),
-    m_crtcolors(CRTcolors),
-    m_scanlineEnable(true),
-    m_scanlineStrength(scanlineStrength),
-    m_barrelEffectEnable(true),
-    m_barrelStrength(ubarrelStrength),
-    m_totalXRes(totalXRes),
-    m_totalYRes(totalYRes),
-    m_vao(0),
-    m_width(0),
-    m_height(0)
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle) : m_aa(aaValue),
+                                                                                                                                                    m_crtcolors(CRTcolors),
+                                                                                                                                                    m_scanlineEnable(true),
+                                                                                                                                                    m_scanlineStrength(1 - (scanlineStrength / 10.0f)),
+                                                                                                                                                    m_barrelEffectEnable(true),
+                                                                                                                                                    m_barrelStrength(ubarrelStrength / 100.0f),
+                                                                                                                                                    m_totalXRes(totalXRes),
+                                                                                                                                                    m_totalYRes(totalYRes),
+                                                                                                                                                    m_vao(0),
+                                                                                                                                                    m_width(0),
+                                                                                                                                                    m_height(0)
 {
-	if ((m_aa > 1) || (m_crtcolors != CRTcolor::None)) {
-    // =========================
-    // Vertex Shader
-    // =========================
-	static const char* overlayFS = R"glsl(
+    if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
+    {
+        // =========================
+        // Vertex Shader
+        // =========================
+        static const char *overlayFS = R"glsl(
 #version 410 core
 in vec2 vTexCoord;
 uniform sampler2D uOverlayTex;
@@ -29,10 +29,9 @@ out vec4 fragColor;
 void main() {
     fragColor = texture(uOverlayTex, vTexCoord);
 }
-)glsl";	
-		
-		
-    static const char* vertexShader = R"glsl(
+)glsl";
+
+        static const char *vertexShader = R"glsl(
 #version 410 core
 	
 out vec2 vTexCoord; // フラグメントシェーダーへ渡すUV
@@ -54,38 +53,38 @@ void main(void)
 }
 )glsl";
 
-    // =========================
-    // Fragment Shader header
-    // =========================
-    static const std::string fragmentShaderVersion = R"glsl(
+        // =========================
+        // Fragment Shader header
+        // =========================
+        static const std::string fragmentShaderVersion = R"glsl(
 #version 410 core
 )glsl";
 
-    std::string aaString = "const int aa = ";
-    aaString += std::to_string(m_aa);
-    aaString += ";\n";
+        std::string aaString = "const int aa = ";
+        aaString += std::to_string(m_aa);
+        aaString += ";\n";
 
-    std::string ccString = "#define CRTCOLORS ";
-    ccString += std::to_string((int)m_crtcolors);
-    ccString += "\n";
-    
-    // スキャンライン強度はUniformで制御するため、ここでのconst定義は削除
-    
-    std::string uhString = "const int uScreenHeight = ";
-    uhString += std::to_string(m_totalYRes);
-    uhString += ";\n";
-	
-	std::string scString = "const float SCANLINE_STRENGTH = "; 
-	scString += std::to_string(m_scanlineStrength);
-	scString += ";\n";
-    
-	std::string bsString = "const float BARREL_STRENGTH = "; 
-	bsString += std::to_string(m_barrelStrength);
-	bsString += ";\n";
-    // =========================
-    // Fragment Shader body
-    // =========================
-    static const std::string fragmentShaderBody = R"glsl(
+        std::string ccString = "#define CRTCOLORS ";
+        ccString += std::to_string((int)m_crtcolors);
+        ccString += "\n";
+
+        // スキャンライン強度はUniformで制御するため、ここでのconst定義は削除
+
+        std::string uhString = "const int uScreenHeight = ";
+        uhString += std::to_string(m_totalYRes);
+        uhString += ";\n";
+
+        std::string scString = "const float SCANLINE_STRENGTH = ";
+        scString += std::to_string(m_scanlineStrength);
+        scString += ";\n";
+
+        std::string bsString = "const float BARREL_STRENGTH = ";
+        bsString += std::to_string(m_barrelStrength);
+        bsString += ";\n";
+        // =========================
+        // Fragment Shader body
+        // =========================
+        static const std::string fragmentShaderBody = R"glsl(
 in vec2 vTexCoord; // 頂点シェーダーから受け取る
 uniform sampler2D tex1;
 uniform int scanlineEnable;
@@ -214,29 +213,29 @@ void main()
 }
 )glsl";
 
-    std::string fs = fragmentShaderVersion + aaString + ccString + uhString + scString + bsString +fragmentShaderBody;
+        std::string fs = fragmentShaderVersion + aaString + ccString + uhString + scString + bsString + fragmentShaderBody;
 
-    // =========================
-    // Shader load
-    // =========================
-    m_shader.LoadShaders(vertexShader, fs.c_str());
-    m_shader.GetUniformLocationMap("tex1");
-	m_shader.GetUniformLocationMap("barrelEffectEnable");
-	m_shader.GetUniformLocationMap("BarrelStrength");
-    m_shader.GetUniformLocationMap("scanlineEnable");
-	m_shader.GetUniformLocationMap("scanlineStrength");
-    m_shader.GetUniformLocationMap("uAspect");
-	m_overlayShader.LoadShaders(vertexShader, overlayFS); 
-	m_overlayShader.GetUniformLocationMap("uOverlayTex");
-    
+        // =========================
+        // Shader load
+        // =========================
+        m_shader.LoadShaders(vertexShader, fs.c_str());
+        m_shader.GetUniformLocationMap("tex1");
+        m_shader.GetUniformLocationMap("barrelEffectEnable");
+        m_shader.GetUniformLocationMap("BarrelStrength");
+        m_shader.GetUniformLocationMap("scanlineEnable");
+        m_shader.GetUniformLocationMap("scanlineStrength");
+        m_shader.GetUniformLocationMap("uAspect");
+        m_overlayShader.LoadShaders(vertexShader, overlayFS);
+        m_overlayShader.GetUniformLocationMap("uOverlayTex");
 
-    // VAO生成
-    glGenVertexArrays(1, &m_vao);
-		
-		if (gameTitle != nullptr) {
-        LoadOverlayByTitle(gameTitle);
+        // VAO生成
+        glGenVertexArrays(1, &m_vao);
+
+        if (gameTitle != nullptr)
+        {
+            LoadOverlayByTitle(gameTitle);
+        }
     }
-	}
 }
 // =========================
 // Destructor
@@ -258,20 +257,20 @@ SuperAA::~SuperAA()
 // =========================
 void SuperAA::Init(int width, int height)
 {
-	if ((m_aa > 1) || (m_crtcolors != CRTcolor::None)) {
-		
-		 // 0以下のサイズを防ぐ
-    	if (width <= 0 || height <= 0) return;
-    		m_fbo.Destroy();
-    		m_fbo.Create(width * m_aa, height * m_aa);
-			m_fbo2.Create(width, height);
-    		m_width  = width;
-    		m_height = height;
-		}
-		
-	}
-    //m_fbo.Destroy();
-   
+    if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
+    {
+
+        // 0以下のサイズを防ぐ
+        if (width <= 0 || height <= 0)
+            return;
+        m_fbo.Destroy();
+        m_fbo.Create(width * m_aa, height * m_aa);
+        m_fbo2.Create(width * m_aa, height * m_aa);
+        m_width = width ;
+        m_height = height ;
+    }
+}
+// m_fbo.Destroy();
 
 // =========================
 // Draw
@@ -280,81 +279,82 @@ void SuperAA::Draw()
 {
     // --- 1. ポストエフェクト（AA/CRT）の描画 ---
     // ここでは glViewport をいじりません。Supermodelが設定した比率（4:3 or 16:9）のまま描画させます。
-    if ((m_aa > 1) || (m_crtcolors != CRTcolor::None)) {
-        if (m_width > 0 && m_height > 0) {
+    if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
+    {
+        if (m_width > 0 && m_height > 0)
+        {
             m_shader.EnableShader();
-            
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_fbo.GetTextureID());
-            
-            if (m_shader.attribLocMap["tex1"] >= 0) glUniform1i(m_shader.attribLocMap["tex1"], 0);
-            
+
+            if (m_shader.attribLocMap["tex1"] >= 0)
+                glUniform1i(m_shader.attribLocMap["tex1"], 0);
         }
     }
-	if (m_shader.attribLocMap["scanlineEnable"] >= 0) glUniform1i(m_shader.attribLocMap["scanlineEnable"], m_scanlineEnable ? 1 : 0);
-	    // 【重要】比率は頂点シェーダーの vertices[]（-1.0〜1.0）が Viewport にフィットします。
-            // Supermodelが4:3のViewportを設定していれば、そこに4:3で収まります。
-            glBindVertexArray(m_vao);
-        	glViewport(0, 0, m_width, m_height);
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        	glBindVertexArray(0);
-            m_shader.DisableShader();
-	
+    if (m_shader.attribLocMap["scanlineEnable"] >= 0)
+        glUniform1i(m_shader.attribLocMap["scanlineEnable"], m_scanlineEnable ? 1 : 0);
+    // 【重要】比率は頂点シェーダーの vertices[]（-1.0〜1.0）が Viewport にフィットします。
+    // Supermodelが4:3のViewportを設定していれば、そこに4:3で収まります。
+    glBindVertexArray(m_vao);
+    glViewport(0, 0, m_width, m_height);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+    m_shader.DisableShader();
 
     // --- 2. オーバーレイの描画 ---
     // AAの設定（m_aa > 1等）に関わらず、テクスチャがあれば必ず実行するよう外に出しました。//m_overlayTex != 0
-    if (m_overlayTex != 0) { 
+    if (m_overlayTex != 0)
+    {
         // 現在のViewport（ゲーム画面用の4:3など）を一時保存
         GLint last_viewport[4];
         glGetIntegerv(GL_VIEWPORT, last_viewport);
 
         // オーバーレイ描画のために全画面（16:9）へ一時変更
-        glViewport(0, 0, m_totalXRes, m_totalYRes); 
+        glViewport(0, 0, m_totalXRes, m_totalYRes);
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glDisable(GL_DEPTH_TEST); 
+        glDisable(GL_DEPTH_TEST);
 
         m_overlayShader.EnableShader();
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_overlayTex);
-        
-        if (m_overlayShader.attribLocMap["uOverlayTex"] >= 0) {
+
+        if (m_overlayShader.attribLocMap["uOverlayTex"] >= 0)
+        {
             glUniform1i(m_overlayShader.attribLocMap["uOverlayTex"], 0);
         }
 
         glBindVertexArray(m_vao);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4); 
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         m_overlayShader.DisableShader();
         glDisable(GL_BLEND);
-        
+
         // 保存しておいた元のViewport（4:3等）に戻す
         // これをしないと、次のフレームのゲーム描画が引き伸ばされます。
         glViewport(last_viewport[0], last_viewport[1], last_viewport[2], last_viewport[3]);
     }
-    
+
     glBindVertexArray(0);
 }
-
 
 void SuperAA::ToggleScanline()
 {
     m_scanlineEnable = !m_scanlineEnable;
-	printf("[SuperAA] Scanline %s\n", m_scanlineEnable ? "ON" : "OFF");
-	
+    printf("[SuperAA] Scanline %s\n", m_scanlineEnable ? "ON" : "OFF");
 }
 void SuperAA::ToggleBarrelEffect()
 {
-	//m_barrelEffectEnable = !m_barrelEffectEnable;
-	//printf("[SuperAA] barrelEffect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
-	
+    // m_barrelEffectEnable = !m_barrelEffectEnable;
+    // printf("[SuperAA] barrelEffect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
 }
 
-//float SuperAA::BarrelStrength()
+// float SuperAA::BarrelStrength()
 //{
 //	m_barrelStrength = ubarrelStrength;
-//}
+// }
 /*
 void SuperAA::SetScanlineEnable(bool enable)
 {
@@ -373,15 +373,17 @@ GLuint SuperAA::GetTargetID()
 {
     return m_fbo.GetFBOID();
 }
-GLuint LoadPNGTexture(const char* filename) {
+GLuint LoadPNGTexture(const char *filename)
+{
     int width, height, channels;
     // 上下反転が必要な場合は true に（OpenGLは左下が原点のため）
-    stbi_set_flip_vertically_on_load(true); 
-    
-    unsigned char* data = stbi_load(filename, &width, &height, &channels, 4); // 強制的にRGBAで読み込む
-    
-    if (!data) {
-        //printf("Failed to load texture: %s\n", filename);
+    stbi_set_flip_vertically_on_load(true);
+
+    unsigned char *data = stbi_load(filename, &width, &height, &channels, 4); // 強制的にRGBAで読み込む
+
+    if (!data)
+    {
+        // printf("Failed to load texture: %s\n", filename);
         return 0;
     }
 
@@ -395,7 +397,7 @@ GLuint LoadPNGTexture(const char* filename) {
     // フィルタリング設定（オーバーレイなので綺麗に見えるよう線形補間）
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
+
     // 画面端の処理
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -404,12 +406,14 @@ GLuint LoadPNGTexture(const char* filename) {
     return textureID;
 }
 // --- ヘルパー関数: メモリから読み込む ---
-GLuint LoadTextureFromMemory(const unsigned char* data, int len) {
+GLuint LoadTextureFromMemory(const unsigned char *data, int len)
+{
     int width, height, channels;
     stbi_set_flip_vertically_on_load(true);
-    unsigned char* pixels = stbi_load_from_memory(data, len, &width, &height, &channels, 4);
-    
-    if (!pixels) return 0;
+    unsigned char *pixels = stbi_load_from_memory(data, len, &width, &height, &channels, 4);
+
+    if (!pixels)
+        return 0;
 
     GLuint tex;
     glGenTextures(1, &tex);
@@ -417,17 +421,19 @@ GLuint LoadTextureFromMemory(const unsigned char* data, int len) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
+
     stbi_image_free(pixels);
     return tex;
 }
-void SuperAA::LoadOverlayByTitle(const std::string& gameTitle) {
+void SuperAA::LoadOverlayByTitle(const std::string &gameTitle)
+{
     // 1. タイトル文字列の整形 (空白をハイフンに)
     std::string processedTitle = gameTitle;
     std::replace(processedTitle.begin(), processedTitle.end(), ' ', '-');
 
     // 2. 古いテクスチャの破棄
-    if (m_overlayTex != 0) {
+    if (m_overlayTex != 0)
+    {
         glDeleteTextures(1, &m_overlayTex);
         m_overlayTex = 0;
     }
@@ -437,11 +443,13 @@ void SuperAA::LoadOverlayByTitle(const std::string& gameTitle) {
     m_overlayTex = LoadPNGTexture(path.c_str());
 
     // 4. ファイルがなければ、埋め込み画像を読み込む
-    if (m_overlayTex == 0) {
+    if (m_overlayTex == 0)
+    {
         printf("[SuperAA] Overlay file not found.\n");
-        //m_overlayTex = LoadTextureFromMemory(warning_text_png, warning_text_png_len);
-    } else {
+        // m_overlayTex = LoadTextureFromMemory(warning_text_png, warning_text_png_len);
+    }
+    else
+    {
         printf("[SuperAA] Loaded overlay: %s\n", path.c_str());
     }
 }
-

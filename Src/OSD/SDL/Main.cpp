@@ -108,6 +108,8 @@
 #include <cstdlib>
 #include <chrono>
 #include <ctime>
+#include <windows.h>
+#include <shellapi.h>
 
 /******************************************************************************
  Global Run-time Config
@@ -121,7 +123,6 @@ static const std::string s_logFilePath = Util::Format() << FileSystemPath::GetPa
 
 static Util::Config::Node s_runtime_config("Global");
 
-
 /******************************************************************************
  Display Management
 ******************************************************************************/
@@ -134,23 +135,24 @@ SDL_Window *s_window = nullptr;
  * computed offsets within the viewport) that will be rendered based on what
  * was obtained from SDL.
  */
-static unsigned  xOffset, yOffset;      // offset of renderer output within OpenGL viewport
-static unsigned  xRes, yRes;            // renderer output resolution (can be smaller than GL viewport)
-static unsigned  totalXRes, totalYRes;  // total resolution (the whole GL viewport)
-static int aaValue = 1;                 // default is 1 which is no aa
-static const char*  title;              // title
-static float  xAr = 496.0, yAr = 384.0;                 // AspectRatio 496*384 or 512*384)
+static unsigned xOffset, yOffset;           // offset of renderer output within OpenGL viewport
+static unsigned xRes, yRes;                 // renderer output resolution (can be smaller than GL viewport)
+static unsigned totalXRes, totalYRes;       // total resolution (the whole GL viewport)
+static int aaValue = 1;                     // default is 1 which is no aa
+static const char *title;                   // title
+static float xAr = 496.0, yAr = 384.0;      // AspectRatio 496*384 or 512*384)
 static CRTcolor CRTcolors = CRTcolor::None; // default to no gamma/color adaption being done
-float scanlineStrength = 0.85f;
-float BarrelStrength = 0.01f;
+int scanlineStrength = 9;
+int BarrelStrength = 1;
 bool replayRequested = false;
-bool replayStarted   = false;
+bool replayStarted = false;
 std::string replayFile;
 static bool lastLoadStatePressed = false;
+
 /*
  * Crosshair stuff
  */
-static CCrosshair* s_crosshair = nullptr;
+static CCrosshair *s_crosshair = nullptr;
 
 static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned *xResPtr, unsigned *yResPtr, unsigned *totalXResPtr, unsigned *totalYResPtr, bool keepAspectRatio)
 {
@@ -166,26 +168,26 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   float yResF = float(*yResPtr);
   if (keepAspectRatio)
   {
-    float model3Ratio = float(xAr/yAr);//float model3Ratio = float(496.0/384.0);
-    if (yResF < (xResF/model3Ratio))
-      xResF = yResF*model3Ratio;
-    if (xResF < (yResF*model3Ratio))
-      yResF = xResF/model3Ratio;
+    float model3Ratio = float(xAr / yAr); // float model3Ratio = float(496.0/384.0);
+    if (yResF < (xResF / model3Ratio))
+      xResF = yResF * model3Ratio;
+    if (xResF < (yResF * model3Ratio))
+      yResF = xResF / model3Ratio;
   }
 
   // Center the visible area
-  *xOffsetPtr = (*xResPtr - (unsigned) xResF)/2;
-  *yOffsetPtr = (*yResPtr - (unsigned) yResF)/2;
+  *xOffsetPtr = (*xResPtr - (unsigned)xResF) / 2;
+  *yOffsetPtr = (*yResPtr - (unsigned)yResF) / 2;
 
   // If the desired resolution is smaller than what we got, re-center again
   if (int(*xResPtr) < actualWidth)
-    *xOffsetPtr += (actualWidth - *xResPtr)/2;
+    *xOffsetPtr += (actualWidth - *xResPtr) / 2;
   if (int(*yResPtr) < actualHeight)
-    *yOffsetPtr += (actualHeight - *yResPtr)/2;
+    *yOffsetPtr += (actualHeight - *yResPtr) / 2;
 
   // OpenGL initialization
-  glViewport(0,0,*xResPtr,*yResPtr);
-  glClearColor(0.0,0.0,0.0,0.0);
+  glViewport(0, 0, *xResPtr, *yResPtr);
+  glClearColor(0.0, 0.0, 0.0, 0.0);
   glClearDepth(1.0);
   glDepthFunc(GL_LESS);
   glEnable(GL_DEPTH_TEST);
@@ -194,22 +196,22 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   // Clear both buffers to ensure a black border
   for (int i = 0; i < 3; i++)
   {
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     SDL_GL_SwapWindow(s_window);
   }
 
   // Write back resolution parameters
-  *xResPtr = (unsigned) xResF;
-  *yResPtr = (unsigned) yResF;
+  *xResPtr = (unsigned)xResF;
+  *yResPtr = (unsigned)yResF;
 
-  UINT32 correction = (UINT32)(((*yResPtr / yAr) * 2.) + 0.5);//UINT32 correction = (UINT32)(((*yResPtr / 384.) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
+  UINT32 correction = (UINT32)(((*yResPtr / yAr) * 2.) + 0.5); // UINT32 correction = (UINT32)(((*yResPtr / 384.) * 2.) + 0.5); // due to the 2D layer compensation (2 pixels off)
 
   glEnable(GL_SCISSOR_TEST);
 
   // Scissor box (to clip visible area)
   if (s_runtime_config["WideScreen"].ValueAsDefault<bool>(false))
   {
-    glScissor(0* aaValue, correction* aaValue, *totalXResPtr * aaValue, (*totalYResPtr - (correction * 2)) * aaValue);
+    glScissor(0 * aaValue, correction * aaValue, *totalXResPtr * aaValue, (*totalYResPtr - (correction * 2)) * aaValue);
   }
   else
   {
@@ -218,9 +220,41 @@ static Result SetGLGeometry(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigned
   return Result::OKAY;
 }
 
-static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
+void RelaunchHidden(int argc, char **argv)
 {
-    printf("OGLDebug:: 0x%X: %s\n", id, message);
+  // すでに「隠しモード」で起動しているかチェック（無限ループ防止）
+  // 引数に "--hidden" がなければ、隠し状態で自分を再起動する
+  bool isHidden = false;
+  for (int i = 0; i < argc; i++)
+  {
+    if (std::string(argv[i]) == "--hidden")
+      isHidden = true;
+  }
+
+  if (!isHidden)
+  {
+    std::string cmdLine = "--hidden";
+    // 自分のパスを取得
+    char szPath[MAX_PATH];
+    GetModuleFileNameA(NULL, szPath, MAX_PATH);
+
+    // CREATE_NO_WINDOW フラグを立てて、新しい自分を起動aaa
+    STARTUPINFOA si = {sizeof(si)};
+    PROCESS_INFORMATION pi;
+    if (CreateProcessA(szPath, (LPSTR)cmdLine.c_str(), NULL, NULL, FALSE,
+                       CREATE_NO_WINDOW, NULL, NULL, &si, &pi))
+    {
+
+      CloseHandle(pi.hProcess);
+      CloseHandle(pi.hThread);
+      exit(0); // 親（コンソールあり）は即座に終了
+    }
+  }
+}
+
+static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+{
+  printf("OGLDebug:: 0x%X: %s\n", id, message);
 }
 
 // In windows with an nvidia card (sorry not tested anything else) you can customise the resolution.
@@ -229,36 +263,43 @@ static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLen
 // If it doesn't exist, then it'll probably just default to 60 or whatever your refresh rate is.
 static void SetFullScreenRefreshRate()
 {
-    float refreshRateHz = std::abs(s_runtime_config["RefreshRate"].ValueAs<float>());
+  float refreshRateHz = std::abs(s_runtime_config["RefreshRate"].ValueAs<float>());
 
-    if (refreshRateHz > 57.f && refreshRateHz < 58.f) {
+  if (refreshRateHz > 57.f && refreshRateHz < 58.f)
+  {
 
-        int display_in_use = 0; /* Only using first display */
+    int display_in_use = 0; /* Only using first display */
 
-        int display_mode_count = SDL_GetNumDisplayModes(display_in_use);
-        if (display_mode_count < 1) {
-            return;
-        }
-
-        for (int i = 0; i < display_mode_count; ++i) {
-
-            SDL_DisplayMode mode;
-
-            if (SDL_GetDisplayMode(display_in_use, i, &mode) != 0) {
-                return;
-            }
-
-            if (SDL_BITSPERPIXEL(mode.format) >= 24 && mode.w == totalXRes && mode.h == totalYRes) {
-                if (mode.refresh_rate == 57 || mode.refresh_rate == 58) {       // nvidia is fairly flexible in what refresh rate windows will show, so we can match either 57 or 58,
-                    int result = SDL_SetWindowDisplayMode(s_window, &mode);     // both are totally non standard frequencies and shouldn't be set incorrectly
-                    if (result == 0) {
-                        printf("Custom fullscreen mode set: %ix%i@57.524 Hz\n", mode.w, mode.h);
-                    }
-                    break;
-                }
-            }
-        }
+    int display_mode_count = SDL_GetNumDisplayModes(display_in_use);
+    if (display_mode_count < 1)
+    {
+      return;
     }
+
+    for (int i = 0; i < display_mode_count; ++i)
+    {
+
+      SDL_DisplayMode mode;
+
+      if (SDL_GetDisplayMode(display_in_use, i, &mode) != 0)
+      {
+        return;
+      }
+
+      if (SDL_BITSPERPIXEL(mode.format) >= 24 && mode.w == totalXRes && mode.h == totalYRes)
+      {
+        if (mode.refresh_rate == 57 || mode.refresh_rate == 58)
+        {                                                         // nvidia is fairly flexible in what refresh rate windows will show, so we can match either 57 or 58,
+          int result = SDL_SetWindowDisplayMode(s_window, &mode); // both are totally non standard frequencies and shouldn't be set incorrectly
+          if (result == 0)
+          {
+            printf("Custom fullscreen mode set: %ix%i@57.524 Hz\n", mode.w, mode.h);
+          }
+          break;
+        }
+      }
+    }
+  }
 }
 
 /*
@@ -290,32 +331,35 @@ static Result CreateGLScreen(bool coreContext, bool quadRendering, const std::st
     return ErrorLog("Unable to initialize SDL video subsystem: %s\n", SDL_GetError());
 
   // Important GL attributes
-  SDL_GL_SetAttribute(SDL_GL_RED_SIZE,8);
-  SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE,8);
-  SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE,8);
-  if(s_runtime_config["New3DEngine"].ValueAsDefault<bool>(true))
+  SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+  if (s_runtime_config["New3DEngine"].ValueAsDefault<bool>(true))
   {
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,0);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,0);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 0);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 0);
   }
   else
   {
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);
-    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
   }
-  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-  if (coreContext) {
-      SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+  if (coreContext)
+  {
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-      if (quadRendering) {
-          SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-          SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
-      }
-      else {
-          SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-          SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-      }
+    if (quadRendering)
+    {
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
+    }
+    else
+    {
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+      SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    }
   }
 
   // Set video mode
@@ -359,19 +403,21 @@ static Result CreateGLScreen(bool coreContext, bool quadRendering, const std::st
 
   printf("GPU info: %s ", glGetString(GL_VERSION));
 
-  if (profile & GL_CONTEXT_CORE_PROFILE_BIT) {
-      printf("(core profile)");
+  if (profile & GL_CONTEXT_CORE_PROFILE_BIT)
+  {
+    printf("(core profile)");
   }
 
-  if (profile & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT) {
-      printf("(compatibility profile)");
+  if (profile & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT)
+  {
+    printf("(compatibility profile)");
   }
 
   printf("\n\n");
 
-  //glDebugMessageCallback(DebugCallback, NULL);
-  //glDebugMessageControl(GL_DONT_CARE,GL_DONT_CARE,GL_DONT_CARE, 0, 0, GL_TRUE);
-  //glEnable(GL_DEBUG_OUTPUT);
+  // glDebugMessageCallback(DebugCallback, NULL);
+  // glDebugMessageControl(GL_DONT_CARE,GL_DONT_CARE,GL_DONT_CARE, 0, 0, GL_TRUE);
+  // glEnable(GL_DEBUG_OUTPUT);
 
   return SetGLGeometry(xOffsetPtr, yOffsetPtr, xResPtr, yResPtr, totalXResPtr, totalYResPtr, keepAspectRatio);
 }
@@ -405,7 +451,7 @@ static Result ResizeGLScreen(unsigned *xOffsetPtr, unsigned *yOffsetPtr, unsigne
  */
 static void PrintGLInfo(bool createScreen, bool infoLog, bool printExtensions)
 {
-  unsigned xOffset, yOffset, xRes=xAr, yRes=yAr, totalXRes, totalYRes;//unsigned xOffset, yOffset, xRes=496, yRes=384, totalXRes, totalYRes;
+  unsigned xOffset, yOffset, xRes = xAr, yRes = yAr, totalXRes, totalYRes; // unsigned xOffset, yOffset, xRes=496, yRes=384, totalXRes, totalYRes;
   if (createScreen)
   {
     if (Result::OKAY != CreateGLScreen(false, false, "Supermodel - Querying OpenGL Information...", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
@@ -416,60 +462,88 @@ static void PrintGLInfo(bool createScreen, bool infoLog, bool printExtensions)
   }
 
   GLint value;
-  if (infoLog)  InfoLog("OpenGL information:");
-  else             puts("OpenGL information:\n");
+  if (infoLog)
+    InfoLog("OpenGL information:");
+  else
+    puts("OpenGL information:\n");
   const GLubyte *str = glGetString(GL_VENDOR);
-  if (infoLog)  InfoLog("  Vendor                   : %s", str);
-  else           printf("  Vendor                   : %s\n", str);
+  if (infoLog)
+    InfoLog("  Vendor                   : %s", str);
+  else
+    printf("  Vendor                   : %s\n", str);
   str = glGetString(GL_RENDERER);
-  if (infoLog)  InfoLog("  Renderer                 : %s", str);
-  else           printf("  Renderer                 : %s\n", str);
+  if (infoLog)
+    InfoLog("  Renderer                 : %s", str);
+  else
+    printf("  Renderer                 : %s\n", str);
   str = glGetString(GL_VERSION);
-  if (infoLog)  InfoLog("  Version                  : %s", str);
-  else           printf("  Version                  : %s\n", str);
+  if (infoLog)
+    InfoLog("  Version                  : %s", str);
+  else
+    printf("  Version                  : %s\n", str);
   str = glGetString(GL_SHADING_LANGUAGE_VERSION);
-  if (infoLog)  InfoLog("  Shading Language Version : %s", str);
-  else           printf("  Shading Language Version : %s\n", str);
+  if (infoLog)
+    InfoLog("  Shading Language Version : %s", str);
+  else
+    printf("  Shading Language Version : %s\n", str);
   glGetIntegerv(GL_MAX_ELEMENTS_VERTICES, &value);
-  if (infoLog)  InfoLog("  Maximum Vertex Array Size: %d vertices", value);
-  else           printf("  Maximum Vertex Array Size: %d vertices\n", value);
+  if (infoLog)
+    InfoLog("  Maximum Vertex Array Size: %d vertices", value);
+  else
+    printf("  Maximum Vertex Array Size: %d vertices\n", value);
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, &value);
-  if (infoLog)  InfoLog("  Maximum Texture Size     : %d texels", value);
-  else           printf("  Maximum Texture Size     : %d texels\n", value);
+  if (infoLog)
+    InfoLog("  Maximum Texture Size     : %d texels", value);
+  else
+    printf("  Maximum Texture Size     : %d texels\n", value);
   glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &value);
-  if (infoLog)  InfoLog("  Maximum Vertex Attributes: %d", value);
-  else           printf("  Maximum Vertex Attributes: %d\n", value);
+  if (infoLog)
+    InfoLog("  Maximum Vertex Attributes: %d", value);
+  else
+    printf("  Maximum Vertex Attributes: %d\n", value);
   glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &value);
-  if (infoLog)  InfoLog("  Maximum Vertex Uniforms  : %d", value);
-  else           printf("  Maximum Vertex Uniforms  : %d\n", value);
+  if (infoLog)
+    InfoLog("  Maximum Vertex Uniforms  : %d", value);
+  else
+    printf("  Maximum Vertex Uniforms  : %d\n", value);
   glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &value);
-  if (infoLog)  InfoLog("  Maximum Texture Img Units: %d", value);
-  else           printf("  Maximum Texture Img Units: %d\n", value);
+  if (infoLog)
+    InfoLog("  Maximum Texture Img Units: %d", value);
+  else
+    printf("  Maximum Texture Img Units: %d\n", value);
   if (printExtensions)
   {
     str = glGetString(GL_EXTENSIONS);
-    char *strLocal = (char *) malloc((strlen((char *) str)+1)*sizeof(char));
+    char *strLocal = (char *)malloc((strlen((char *)str) + 1) * sizeof(char));
     if (NULL == strLocal)
     {
-      if (infoLog)  InfoLog("  Supported Extensions     : %s", str);
-      else           printf("  Supported Extensions     : %s\n", str);
+      if (infoLog)
+        InfoLog("  Supported Extensions     : %s", str);
+      else
+        printf("  Supported Extensions     : %s\n", str);
     }
     else
     {
-      strcpy(strLocal, (char *) str);
-      if (infoLog)  InfoLog("  Supported Extensions     : %s", (strLocal = strtok(strLocal, " \t\n")));
-      else           printf("  Supported Extensions     : %s\n", (strLocal = strtok(strLocal, " \t\n")));
-      char* strLocalTmp = strLocal;
+      strcpy(strLocal, (char *)str);
+      if (infoLog)
+        InfoLog("  Supported Extensions     : %s", (strLocal = strtok(strLocal, " \t\n")));
+      else
+        printf("  Supported Extensions     : %s\n", (strLocal = strtok(strLocal, " \t\n")));
+      char *strLocalTmp = strLocal;
       while ((strLocalTmp = strtok(NULL, " \t\n")) != NULL)
       {
-        if (infoLog)  InfoLog("                             %s", strLocalTmp);
-        else           printf("                             %s\n", strLocalTmp);
+        if (infoLog)
+          InfoLog("                             %s", strLocalTmp);
+        else
+          printf("                             %s\n", strLocalTmp);
       }
     }
     free(strLocal);
   }
-  if (infoLog)  InfoLog("");
-  else      printf("\n");
+  if (infoLog)
+    InfoLog("");
+  else
+    printf("\n");
 }
 
 #ifdef DEBUG
@@ -490,7 +564,7 @@ static void PrintBAT(unsigned regu, unsigned regl)
   uint32_t pa_base = brpn << (31 - 14);
   uint32_t pa_limit = pa_base + size - 1;
   printf("%08X-%08X -> %08X-%08X ", ea_base, ea_limit, pa_base, pa_limit);
-  printf("%c%c%c%c ", (wimg&8)?'W':'-', (wimg&4)?'I':'-', (wimg&2)?'M':'-', (wimg&1)?'G':'-');
+  printf("%c%c%c%c ", (wimg & 8) ? 'W' : '-', (wimg & 4) ? 'I' : '-', (wimg & 2) ? 'M' : '-', (wimg & 1) ? 'G' : '-');
   printf("PP=");
   if (pp == 0)
     printf("NA");
@@ -529,14 +603,30 @@ static void DumpPPCRegisters(IBus *bus)
     printf("SR%d=%08X VSID=%06X\n", i, ppc_read_sr(i), ppc_read_sr(i) & 0x00ffffff);
   printf("SDR1=%08X\n", ppc_read_spr(SPR603E_SDR1));
   printf("\n");
-  printf("DBAT0: "); PrintBAT(SPR603E_DBAT0U, SPR603E_DBAT0L); printf("\n");
-  printf("DBAT1: "); PrintBAT(SPR603E_DBAT1U, SPR603E_DBAT1L); printf("\n");
-  printf("DBAT2: "); PrintBAT(SPR603E_DBAT2U, SPR603E_DBAT2L); printf("\n");
-  printf("DBAT3: "); PrintBAT(SPR603E_DBAT3U, SPR603E_DBAT3L); printf("\n");
-  printf("IBAT0: "); PrintBAT(SPR603E_IBAT0U, SPR603E_IBAT0L); printf("\n");
-  printf("IBAT1: "); PrintBAT(SPR603E_IBAT1U, SPR603E_IBAT1L); printf("\n");
-  printf("IBAT2: "); PrintBAT(SPR603E_IBAT2U, SPR603E_IBAT2L); printf("\n");
-  printf("IBAT3: "); PrintBAT(SPR603E_IBAT3U, SPR603E_IBAT3L); printf("\n");
+  printf("DBAT0: ");
+  PrintBAT(SPR603E_DBAT0U, SPR603E_DBAT0L);
+  printf("\n");
+  printf("DBAT1: ");
+  PrintBAT(SPR603E_DBAT1U, SPR603E_DBAT1L);
+  printf("\n");
+  printf("DBAT2: ");
+  PrintBAT(SPR603E_DBAT2U, SPR603E_DBAT2L);
+  printf("\n");
+  printf("DBAT3: ");
+  PrintBAT(SPR603E_DBAT3U, SPR603E_DBAT3L);
+  printf("\n");
+  printf("IBAT0: ");
+  PrintBAT(SPR603E_IBAT0U, SPR603E_IBAT0L);
+  printf("\n");
+  printf("IBAT1: ");
+  PrintBAT(SPR603E_IBAT1U, SPR603E_IBAT1L);
+  printf("\n");
+  printf("IBAT2: ");
+  PrintBAT(SPR603E_IBAT2U, SPR603E_IBAT2L);
+  printf("\n");
+  printf("IBAT3: ");
+  PrintBAT(SPR603E_IBAT3U, SPR603E_IBAT3L);
+  printf("\n");
   printf("\n");
   /*
   printf("First PTEG:\n");
@@ -554,35 +644,35 @@ static void DumpPPCRegisters(IBus *bus)
 }
 #endif
 
-static void SaveFrameBuffer(const std::string& file)
+static void SaveFrameBuffer(const std::string &file)
 {
-    std::shared_ptr<uint8_t> pixels(new uint8_t[totalXRes * totalYRes * 4], std::default_delete<uint8_t[]>());
-    glReadPixels(0, 0, totalXRes, totalYRes, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
-    Util::WriteSurfaceToBMP<Util::RGBA8>(file, pixels.get(), totalXRes, totalYRes, true);
+  std::shared_ptr<uint8_t> pixels(new uint8_t[totalXRes * totalYRes * 4], std::default_delete<uint8_t[]>());
+  glReadPixels(0, 0, totalXRes, totalYRes, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
+  Util::WriteSurfaceToBMP<Util::RGBA8>(file, pixels.get(), totalXRes, totalYRes, true);
 }
 
 void Screenshot()
 {
-    // Make a screenshot
-    time_t now = std::time(nullptr);
-    tm* ltm = std::localtime(&now);
-    std::string file = Util::Format() << FileSystemPath::GetPath(FileSystemPath::Screenshots)
-        << "Screenshot_"
-        << std::setfill('0') << std::setw(4) << (1900 + ltm->tm_year)
-        << '-'
-        << std::setw(2) << (1 + ltm->tm_mon)
-        << '-'
-        << std::setw(2) << ltm->tm_mday
-        << "_("
-        << std::setw(2) << ltm->tm_hour
-        << '-'
-        << std::setw(2) << ltm->tm_min
-        << '-'
-        << std::setw(2) << ltm->tm_sec
-        << ").bmp";
+  // Make a screenshot
+  time_t now = std::time(nullptr);
+  tm *ltm = std::localtime(&now);
+  std::string file = Util::Format() << FileSystemPath::GetPath(FileSystemPath::Screenshots)
+                                    << "Screenshot_"
+                                    << std::setfill('0') << std::setw(4) << (1900 + ltm->tm_year)
+                                    << '-'
+                                    << std::setw(2) << (1 + ltm->tm_mon)
+                                    << '-'
+                                    << std::setw(2) << ltm->tm_mday
+                                    << "_("
+                                    << std::setw(2) << ltm->tm_hour
+                                    << '-'
+                                    << std::setw(2) << ltm->tm_min
+                                    << '-'
+                                    << std::setw(2) << ltm->tm_sec
+                                    << ").bmp";
 
-    std::cout << "Screenshot created: " << file << std::endl;
-    SaveFrameBuffer(file);
+  std::cout << "Screenshot created: " << file << std::endl;
+  SaveFrameBuffer(file);
 }
 
 /******************************************************************************
@@ -612,30 +702,27 @@ static std::string GetFileBaseName(const std::string &file)
 
 static void TestPolygonHeaderBits(IEmulator *Emu)
 {
-  const static std::vector<uint32_t> unknownPolyBits
-  {
-    0xffffffff,
-    0x000000ab, // actual color
-    0x000000fc,
-    0x000000c0,
-    0x000000a0,
-    0xffffff60,
-    0xff0300ff  // contour, luminous, etc.
+  const static std::vector<uint32_t> unknownPolyBits{
+      0xffffffff,
+      0x000000ab, // actual color
+      0x000000fc,
+      0x000000c0,
+      0x000000a0,
+      0xffffff60,
+      0xff0300ff // contour, luminous, etc.
   };
 
-  const std::vector<uint32_t> unknownCullingNodeBits
-  {
-    0xffffffff,
-    0x00000000,
-    0x00000000,
-    0x00000000,
-    0x00000000,
-    0x00000000,
-    0x00000000,
-    0x00000000,
-    0x00000000,
-    0x00000000
-  };
+  const std::vector<uint32_t> unknownCullingNodeBits{
+      0xffffffff,
+      0x00000000,
+      0x00000000,
+      0x00000000,
+      0x00000000,
+      0x00000000,
+      0x00000000,
+      0x00000000,
+      0x00000000,
+      0x00000000};
 
   GLint readBuffer;
   glGetIntegerv(GL_READ_BUFFER, &readBuffer);
@@ -696,7 +783,6 @@ static void TestPolygonHeaderBits(IEmulator *Emu)
 
 #endif
 
-
 /******************************************************************************
  Save States and NVRAM
 
@@ -711,13 +797,13 @@ static void TestPolygonHeaderBits(IEmulator *Emu)
  Different subsystems output their own blocks.
 ******************************************************************************/
 
-static const int STATE_FILE_VERSION = 5;  // save state file version
-static const int NVRAM_FILE_VERSION = 0;  // NVRAM file version
-static unsigned s_saveSlot = 0;           // save state slot #
+static const int STATE_FILE_VERSION = 5; // save state file version
+static const int NVRAM_FILE_VERSION = 0; // NVRAM file version
+static unsigned s_saveSlot = 0;          // save state slot #
 
 static void SaveState(IEmulator *Model3)
 {
-  CBlockFile  SaveState;
+  CBlockFile SaveState;
 
   std::string file_path = Util::Format() << FileSystemPath::GetPath(FileSystemPath::Saves) << Model3->GetGame().name << ".st" << s_saveSlot;
   if (Result::OKAY != SaveState.Create(file_path, "Supermodel Save State", "Supermodel Version " SUPERMODEL_VERSION))
@@ -740,7 +826,7 @@ static void SaveState(IEmulator *Model3)
 
 static void LoadState(IEmulator *Model3, std::string file_path = std::string())
 {
-  CBlockFile  SaveState;
+  CBlockFile SaveState;
 
   // Generate file path
   if (file_path.empty())
@@ -776,7 +862,7 @@ static void LoadState(IEmulator *Model3, std::string file_path = std::string())
 
 static void SaveNVRAM(IEmulator *Model3)
 {
-  CBlockFile  NVRAM;
+  CBlockFile NVRAM;
 
   std::string file_path = Util::Format() << FileSystemPath::GetPath(FileSystemPath::NVRAM) << Model3->GetGame().name << ".nv";
   if (Result::OKAY != NVRAM.Create(file_path, "Supermodel NVRAM State", "Supermodel Version " SUPERMODEL_VERSION))
@@ -798,7 +884,7 @@ static void SaveNVRAM(IEmulator *Model3)
 
 static void LoadNVRAM(IEmulator *Model3)
 {
-  CBlockFile  NVRAM;
+  CBlockFile NVRAM;
 
   // Generate file path
   std::string file_path = Util::Format() << FileSystemPath::GetPath(FileSystemPath::NVRAM) << Model3->GetGame().name << ".nv";
@@ -806,7 +892,7 @@ static void LoadNVRAM(IEmulator *Model3)
   // Open and check to make sure format is correct
   if (Result::OKAY != NVRAM.Load(file_path))
   {
-    //ErrorLog("Unable to restore NVRAM from '%s'.", filePath);
+    // ErrorLog("Unable to restore NVRAM from '%s'.", filePath);
     return;
   }
 
@@ -829,7 +915,6 @@ static void LoadNVRAM(IEmulator *Model3)
   NVRAM.Close();
   InfoLog("Loaded NVRAM from '%s'.", file_path.c_str());
 }
-
 
 /*
 static void PrintGLError(GLenum error)
@@ -871,7 +956,6 @@ void EndFrameVideo()
   SDL_GL_SwapWindow(s_window);
 }
 
-
 /******************************************************************************
  Frame Timing
 ******************************************************************************/
@@ -909,16 +993,15 @@ static void SuperSleepUntil(const uint64_t target)
   int64_t remain;
   do
   {
-    // according to all available processor documentation for x86 and arm,
-    // spinning should pause the processor for a short while for better
-    // power efficiency and (surprisingly) overall faster system performance
-    #ifdef SDL_CPUPauseInstruction
+// according to all available processor documentation for x86 and arm,
+// spinning should pause the processor for a short while for better
+// power efficiency and (surprisingly) overall faster system performance
+#ifdef SDL_CPUPauseInstruction
     SDL_CPUPauseInstruction();
-    #endif
+#endif
     remain = target - SDL_GetPerformanceCounter();
   } while (remain > 0);
 }
-
 
 /******************************************************************************
  Main Program Loop
@@ -933,19 +1016,19 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
 {
 #endif // SUPERMODEL_DEBUGGER
   std::string initialState = s_runtime_config["InitStateFile"].ValueAs<std::string>();
-  uint64_t    prevFPSTicks;
-  unsigned    fpsFramesElapsed;
-  bool        gameHasLightguns = false;
-  bool        quit = false;
-  bool        paused = false;
-  bool        dumpTimings = false;
+  uint64_t prevFPSTicks;
+  unsigned fpsFramesElapsed;
+  bool gameHasLightguns = false;
+  bool quit = false;
+  bool paused = false;
+  bool dumpTimings = false;
 
   // Initialize and load ROMs
   if (Result::OKAY != Model3->Init())
     return 1;
   if (Model3->LoadGame(game, *rom_set) != Result::OKAY)
     return 1;
-  *rom_set = ROMSet();  // free up this memory we won't need anymore
+  *rom_set = ROMSet(); // free up this memory we won't need anymore
 
   // Customized music for games with MPEG boards
   MpegDec::LoadCustomTracks(s_musicXMLFilePath, game);
@@ -969,7 +1052,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
   totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
   title = s_runtime_config["Title"].ValueAs<std::string>().c_str();
-  sprintf(baseTitleStr,"%s - %s",title ,  game.title.c_str());
+  sprintf(baseTitleStr, "%s - %s", title, game.title.c_str());
   SDL_SetWindowTitle(s_window, baseTitleStr);
   SDL_SetWindowSize(s_window, totalXRes, totalYRes);
 
@@ -986,7 +1069,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
 
   bool stretch = s_runtime_config["Stretch"].ValueAs<bool>();
   bool fullscreen = s_runtime_config["FullScreen"].ValueAs<bool>();
-  if (Result::OKAY != ResizeGLScreen(&xOffset, &yOffset ,&xRes, &yRes, &totalXRes, &totalYRes, !stretch, fullscreen))
+  if (Result::OKAY != ResizeGLScreen(&xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, !stretch, fullscreen))
     return 1;
 
   // Info log GL information
@@ -999,7 +1082,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
 
   // Hide mouse if fullscreen, enable crosshairs for gun games
   Inputs->GetInputSystem()->SetMouseVisibility(!s_runtime_config["FullScreen"].ValueAs<bool>());
-  gameHasLightguns = !!(game.inputs & (Game::INPUT_GUN1|Game::INPUT_GUN2));
+  gameHasLightguns = !!(game.inputs & (Game::INPUT_GUN1 | Game::INPUT_GUN2));
   gameHasLightguns |= game.name == "lostwsga";
   currentInputs = game.inputs;
   if (gameHasLightguns)
@@ -1018,23 +1101,23 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   s_perfCounterFrequency = SDL_GetPerformanceFrequency();
   uint64_t perfCountPerFrame = s_perfCounterFrequency * 1000 / GetDesiredRefreshRateMilliHz();
   uint64_t nextTime = 0;
-  
+
   // Initialize the renderers
-  scanlineStrength = s_runtime_config["ScanlineStrength"].ValueAs<float>();
-  BarrelStrength = s_runtime_config["BarrelStrength"].ValueAs<float>();
-  SuperAA* superAA = new SuperAA(aaValue, CRTcolors, scanlineStrength , totalXRes , totalYRes , BarrelStrength , game.title.c_str());
-  superAA->Init(totalXRes, totalYRes);  // pass actual frame sizes here
+  scanlineStrength = s_runtime_config["ScanlineStrength"].ValueAs<int>();
+  BarrelStrength = s_runtime_config["BarrelStrength"].ValueAs<int>();
+  SuperAA *superAA = new SuperAA(aaValue, CRTcolors, scanlineStrength, totalXRes, totalYRes, BarrelStrength, game.title.c_str());
+  superAA->Init(totalXRes, totalYRes); // pass actual frame sizes here
   CRender2D *Render2D = new CRender2D(s_runtime_config);
-  IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *) new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *) new Legacy3D::CLegacy3D(s_runtime_config));
+  IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *)new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *)new Legacy3D::CLegacy3D(s_runtime_config));
 
   UpscaleMode upscaleMode = (UpscaleMode)s_runtime_config["UpscaleMode"].ValueAs<int>();
 
-  if (Result::OKAY != Render2D->Init(xOffset*aaValue, yOffset*aaValue, xRes*aaValue, yRes*aaValue, totalXRes*aaValue, totalYRes*aaValue, superAA->GetTargetID(), upscaleMode))
+  if (Result::OKAY != Render2D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID(), upscaleMode))
     goto QuitError;
-  if (Result::OKAY != Render3D->Init(xOffset*aaValue, yOffset*aaValue, xRes*aaValue, yRes*aaValue, totalXRes*aaValue, totalYRes*aaValue, superAA->GetTargetID()))
+  if (Result::OKAY != Render3D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID()))
     goto QuitError;
 
-  Model3->AttachRenderers(Render2D,Render3D, superAA);
+  Model3->AttachRenderers(Render2D, Render3D, superAA);
 
   // Reset emulator
   Model3->Reset();
@@ -1065,21 +1148,18 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
     TestPolygonHeaderBits(Model3);
     quit = true;
   }
-	
 
-	
-	
 #endif
   while (!quit)
   {
-  	bool currentLoadStatePressed = Inputs->uiLoadState->Pressed();
+    bool currentLoadStatePressed = Inputs->uiLoadState->Pressed();
     if (replayRequested && !replayStarted)
     {
-    	ReplayPlayer::Start(replayFile.c_str());
-    	replayStarted = true;
-	}
-  
-  	Inputs->Poll(&game, xOffset, yOffset, xRes, yRes);
+      ReplayPlayer::Start(replayFile.c_str());
+      replayStarted = true;
+    }
+
+    Inputs->Poll(&game, xOffset, yOffset, xRes, yRes);
     // Render if paused, otherwise run a frame
     if (paused)
       Model3->RenderFrame();
@@ -1108,247 +1188,255 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
     {
 #endif // SUPERMODEL_DEBUGGER
 
-    // Check UI controls
-	if (Inputs->uiExit->Pressed())
-	{
-    	if (ReplayPlayer::IsPlaying())
-    	{
-        	printf("[Replay] UIExit -> stop replay\n");
-        	ReplayPlayer::Stop();
-    	}
-    	else
-    	{
-        	// Quit emulator
-        	quit = true;
-    	}
-	}	
-    else if (Inputs->uiToggleScanline->Pressed())
-    {
-      superAA->ToggleScanline();
-    }
-    else if (Inputs->uiBarrelEffect->Pressed())
-    {
-      superAA->ToggleBarrelEffect();
-    }
-    else if (Inputs->uiReset->Pressed())
-    {
-      if (!paused)
+      // Check UI controls
+      if (Inputs->uiExit->Pressed())
       {
-        Model3->PauseThreads();
-        SetAudioEnabled(false);
+        if (ReplayPlayer::IsPlaying())
+        {
+          printf("[Replay] UIExit -> stop replay\n");
+          ReplayPlayer::Stop();
+        }
+        else
+        {
+          // Quit emulator
+          quit = true;
+        }
       }
+      else if (Inputs->uiToggleScanline->Pressed())
+      {
+        superAA->ToggleScanline();
+      }
+      else if (Inputs->uiBarrelEffect->Pressed())
+      {
+        superAA->ToggleBarrelEffect();
+      }
+      else if (Inputs->uiReset->Pressed())
+      {
+        if (!paused)
+        {
+          Model3->PauseThreads();
+          SetAudioEnabled(false);
+        }
 
-      // Reset emulator
-      Model3->Reset();
+        // Reset emulator
+        Model3->Reset();
 
 #ifdef SUPERMODEL_DEBUGGER
-      // If debugger was supplied, reset it too
-      if (Debugger != NULL)
-        Debugger->Reset();
+        // If debugger was supplied, reset it too
+        if (Debugger != NULL)
+          Debugger->Reset();
 #endif // SUPERMODEL_DEBUGGER
 
-      if (!paused)
-      {
-        Model3->ResumeThreads();
-        SetAudioEnabled(true);
+        if (!paused)
+        {
+          Model3->ResumeThreads();
+          SetAudioEnabled(true);
+        }
+
+        puts("Model 3 reset.");
       }
-
-      puts("Model 3 reset.");
-    }
-    else if (Inputs->uiPause->Pressed())
-    {
-      // Toggle emulator paused flag
-      paused = !paused;
-
-      if (paused)
+      else if (Inputs->uiPause->Pressed())
       {
-        Model3->PauseThreads();
-        SetAudioEnabled(false);
-        snprintf(titleStr, sizeof(titleStr), "%s (Paused)", baseTitleStr);
-        SDL_SetWindowTitle(s_window, titleStr);
+        // Toggle emulator paused flag
+        paused = !paused;
+
+        if (paused)
+        {
+          Model3->PauseThreads();
+          SetAudioEnabled(false);
+          snprintf(titleStr, sizeof(titleStr), "%s (Paused)", baseTitleStr);
+          SDL_SetWindowTitle(s_window, titleStr);
+        }
+        else
+        {
+          Model3->ResumeThreads();
+          SetAudioEnabled(true);
+          SDL_SetWindowTitle(s_window, baseTitleStr);
+        }
+
+        // Send paused value as output
+        if (Outputs != NULL)
+          Outputs->SetValue(OutputPause, paused);
       }
-      else
+      else if (Inputs->uiFullScreen->Pressed())
       {
-        Model3->ResumeThreads();
-        SetAudioEnabled(true);
-        SDL_SetWindowTitle(s_window, baseTitleStr);
+        // Toggle emulator fullscreen
+        s_runtime_config.Get("FullScreen").SetValue(!s_runtime_config["FullScreen"].ValueAs<bool>());
+
+        // Delete renderers and recreate them afterwards since GL context will most likely be lost when switching from/to fullscreen
+        delete Render2D;
+        Render2D = nullptr;
+
+        // Resize screen
+        totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
+        totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
+        bool stretchc = s_runtime_config["Stretch"].ValueAs<bool>();
+        bool fullscreenc = s_runtime_config["FullScreen"].ValueAs<bool>();
+        if (Result::OKAY != ResizeGLScreen(&xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, !stretchc, fullscreenc))
+          goto QuitError;
+
+        // Recreate renderers and attach to the emulator
+        superAA->Init(totalXRes, totalYRes);
+        Render2D = new CRender2D(s_runtime_config);
+
+        if (Result::OKAY != Render2D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID(), upscaleMode))
+          goto QuitError;
+        if (Result::OKAY != Render3D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID()))
+          goto QuitError;
+
+        Model3->AttachRenderers(Render2D, Render3D, superAA);
+
+        Inputs->GetInputSystem()->SetMouseVisibility(!s_runtime_config["FullScreen"].ValueAs<bool>());
       }
-
-      // Send paused value as output
-      if (Outputs != NULL)
-        Outputs->SetValue(OutputPause, paused);
-    }
-    else if (Inputs->uiFullScreen->Pressed())
-    {
-      // Toggle emulator fullscreen
-      s_runtime_config.Get("FullScreen").SetValue(!s_runtime_config["FullScreen"].ValueAs<bool>());
-
-      // Delete renderers and recreate them afterwards since GL context will most likely be lost when switching from/to fullscreen
-      delete Render2D;
-      Render2D = nullptr;
-
-      // Resize screen
-      totalXRes = xRes = s_runtime_config["XResolution"].ValueAs<unsigned>();
-      totalYRes = yRes = s_runtime_config["YResolution"].ValueAs<unsigned>();
-      bool stretchc = s_runtime_config["Stretch"].ValueAs<bool>();
-      bool fullscreenc = s_runtime_config["FullScreen"].ValueAs<bool>();
-      if (Result::OKAY != ResizeGLScreen(&xOffset,&yOffset,&xRes,&yRes,&totalXRes,&totalYRes,!stretchc,fullscreenc))
-        goto QuitError;
-
-      // Recreate renderers and attach to the emulator
-      superAA->Init(totalXRes, totalYRes);
-      Render2D = new CRender2D(s_runtime_config);
-
-      if (Result::OKAY != Render2D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID(), upscaleMode))
-        goto QuitError;
-      if (Result::OKAY != Render3D->Init(xOffset * aaValue, yOffset * aaValue, xRes * aaValue, yRes * aaValue, totalXRes * aaValue, totalYRes * aaValue, superAA->GetTargetID()))
-        goto QuitError;
-
-      Model3->AttachRenderers(Render2D, Render3D, superAA);
-
-      Inputs->GetInputSystem()->SetMouseVisibility(!s_runtime_config["FullScreen"].ValueAs<bool>());
-    }
-    else if (Inputs->uiSaveState->Pressed())
-    {
-      if (!paused)
+      else if (Inputs->uiSaveState->Pressed())
       {
-        Model3->PauseThreads();
-        SetAudioEnabled(false);
+        if (!paused)
+        {
+          Model3->PauseThreads();
+          SetAudioEnabled(false);
+        }
+
+        // Save game state
+        SaveState(Model3);
+
+        if (!paused)
+        {
+          Model3->ResumeThreads();
+          SetAudioEnabled(true);
+        }
       }
-
-      // Save game state
-      SaveState(Model3);
-
-      if (!paused)
+      else if (Inputs->uiChangeSlot->Pressed())
       {
-        Model3->ResumeThreads();
-        SetAudioEnabled(true);
+        // Change save slot
+        ++s_saveSlot;
+        s_saveSlot %= 10; // clamp to [0,9]
+        printf("Save slot: %d\n", s_saveSlot);
       }
-    }
-    else if (Inputs->uiChangeSlot->Pressed())
-    {
-      // Change save slot
-      ++s_saveSlot;
-      s_saveSlot %= 10; // clamp to [0,9]
-      printf("Save slot: %d\n", s_saveSlot);
-    }
-    else if (currentLoadStatePressed && !lastLoadStatePressed)
-    {
-      if (!paused)
+      else if (currentLoadStatePressed && !lastLoadStatePressed)
       {
-        Model3->PauseThreads();
-        SetAudioEnabled(false);
-      }
+        if (!paused)
+        {
+          Model3->PauseThreads();
+          SetAudioEnabled(false);
+        }
 
-      // Load game state
-      LoadState(Model3);
+        // Load game state
+        LoadState(Model3);
 
 #ifdef SUPERMODEL_DEBUGGER
-      // If debugger was supplied, reset it after loading state
-      if (Debugger != NULL)
-        Debugger->Reset();
+        // If debugger was supplied, reset it after loading state
+        if (Debugger != NULL)
+          Debugger->Reset();
 #endif // SUPERMODEL_DEBUGGER
 
-      if (!paused)
-      {
-        Model3->ResumeThreads();
-        SetAudioEnabled(true);
+        if (!paused)
+        {
+          Model3->ResumeThreads();
+          SetAudioEnabled(true);
+        }
       }
-    }
-    else if (Inputs->uiMusicVolUp->Pressed())
-    {
-      // Increase music volume by 10%
-      if (!Model3->GetGame().mpeg_board.empty())
+      else if (Inputs->uiMusicVolUp->Pressed())
       {
-        int vol = (std::min)(200, s_runtime_config["MusicVolume"].ValueAs<int>() + 10);
-        s_runtime_config.Get("MusicVolume").SetValue(vol);
-        printf("Music volume: %d%%", vol);
+        // Increase music volume by 10%
+        if (!Model3->GetGame().mpeg_board.empty())
+        {
+          int vol = (std::min)(200, s_runtime_config["MusicVolume"].ValueAs<int>() + 10);
+          s_runtime_config.Get("MusicVolume").SetValue(vol);
+          printf("Music volume: %d%%", vol);
+          if (200 == vol)
+            puts(" (maximum)");
+          else
+            printf("\n");
+        }
+        else
+          puts("This game does not have an MPEG music board.");
+      }
+      else if (Inputs->uiMusicVolDown->Pressed())
+      {
+        // Decrease music volume by 10%
+        if (!Model3->GetGame().mpeg_board.empty())
+        {
+          int vol = (std::max)(0, s_runtime_config["MusicVolume"].ValueAs<int>() - 10);
+          s_runtime_config.Get("MusicVolume").SetValue(vol);
+          printf("Music volume: %d%%", vol);
+          if (0 == vol)
+            puts(" (muted)");
+          else
+            printf("\n");
+        }
+        else
+          puts("This game does not have an MPEG music board.");
+      }
+      else if (Inputs->uiSoundVolUp->Pressed())
+      {
+        // Increase sound volume by 10%
+        int vol = (std::min)(200, s_runtime_config["SoundVolume"].ValueAs<int>() + 10);
+        s_runtime_config.Get("SoundVolume").SetValue(vol);
+        printf("Sound volume: %d%%", vol);
         if (200 == vol)
           puts(" (maximum)");
         else
           printf("\n");
       }
-      else
-        puts("This game does not have an MPEG music board.");
-    }
-    else if (Inputs->uiMusicVolDown->Pressed())
-    {
-      // Decrease music volume by 10%
-      if (!Model3->GetGame().mpeg_board.empty())
+      else if (Inputs->uiSoundVolDown->Pressed())
       {
-        int vol = (std::max)(0, s_runtime_config["MusicVolume"].ValueAs<int>() - 10);
-        s_runtime_config.Get("MusicVolume").SetValue(vol);
-        printf("Music volume: %d%%", vol);
+        // Decrease sound volume by 10%
+        int vol = (std::max)(0, s_runtime_config["SoundVolume"].ValueAs<int>() - 10);
+        s_runtime_config.Get("SoundVolume").SetValue(vol);
+        printf("Sound volume: %d%%", vol);
         if (0 == vol)
           puts(" (muted)");
         else
           printf("\n");
       }
-      else
-        puts("This game does not have an MPEG music board.");
-    }
-    else if (Inputs->uiSoundVolUp->Pressed())
-    {
-      // Increase sound volume by 10%
-    int vol = (std::min)(200, s_runtime_config["SoundVolume"].ValueAs<int>() + 10);
-      s_runtime_config.Get("SoundVolume").SetValue(vol);
-      printf("Sound volume: %d%%", vol);
-      if (200 == vol)
-        puts(" (maximum)");
-      else
-        printf("\n");
-    }
-    else if (Inputs->uiSoundVolDown->Pressed())
-    {
-      // Decrease sound volume by 10%
-      int vol = (std::max)(0, s_runtime_config["SoundVolume"].ValueAs<int>() - 10);
-      s_runtime_config.Get("SoundVolume").SetValue(vol);
-      printf("Sound volume: %d%%", vol);
-      if (0 == vol)
-        puts(" (muted)");
-      else
-        printf("\n");
-    }
 #ifdef SUPERMODEL_DEBUGGER
-    else if (Inputs->uiDumpInpState->Pressed())
-    {
-      // Dump input states
-      Inputs->DumpState(&game);
-    }
-    else if (Inputs->uiDumpTimings->Pressed())
-    {
-      dumpTimings = !dumpTimings;
-    }
-#endif
-    else if (Inputs->uiSelectCrosshairs->Pressed() && gameHasLightguns)
-    {
-      int crosshairs = (s_runtime_config["Crosshairs"].ValueAs<unsigned>() + 1) & 3;
-      s_runtime_config.Get("Crosshairs").SetValue(crosshairs);
-      switch (crosshairs)
+      else if (Inputs->uiDumpInpState->Pressed())
       {
-      case 0: puts("Crosshairs disabled.");             break;
-      case 3: puts("Crosshairs enabled.");              break;
-      case 1: puts("Showing Player 1 crosshair only."); break;
-      case 2: puts("Showing Player 2 crosshair only."); break;
+        // Dump input states
+        Inputs->DumpState(&game);
       }
-    }
-    else if (Inputs->uiClearNVRAM->Pressed())
-    {
-      // Clear NVRAM
-      Model3->ClearNVRAM();
-      puts("NVRAM cleared.");
-    }
-    else if (Inputs->uiToggleFrLimit->Pressed())
-    {
-      // Toggle frame limiting
-      s_runtime_config.Get("Throttle").SetValue(!s_runtime_config["Throttle"].ValueAs<bool>());
-      printf("Frame limiting: %s\n", s_runtime_config["Throttle"].ValueAs<bool>() ? "On" : "Off");
-    }
-    else if (Inputs->uiScreenshot->Pressed())
-    {
-      // Make a screenshot
-      Screenshot();
-    }
+      else if (Inputs->uiDumpTimings->Pressed())
+      {
+        dumpTimings = !dumpTimings;
+      }
+#endif
+      else if (Inputs->uiSelectCrosshairs->Pressed() && gameHasLightguns)
+      {
+        int crosshairs = (s_runtime_config["Crosshairs"].ValueAs<unsigned>() + 1) & 3;
+        s_runtime_config.Get("Crosshairs").SetValue(crosshairs);
+        switch (crosshairs)
+        {
+        case 0:
+          puts("Crosshairs disabled.");
+          break;
+        case 3:
+          puts("Crosshairs enabled.");
+          break;
+        case 1:
+          puts("Showing Player 1 crosshair only.");
+          break;
+        case 2:
+          puts("Showing Player 2 crosshair only.");
+          break;
+        }
+      }
+      else if (Inputs->uiClearNVRAM->Pressed())
+      {
+        // Clear NVRAM
+        Model3->ClearNVRAM();
+        puts("NVRAM cleared.");
+      }
+      else if (Inputs->uiToggleFrLimit->Pressed())
+      {
+        // Toggle frame limiting
+        s_runtime_config.Get("Throttle").SetValue(!s_runtime_config["Throttle"].ValueAs<bool>());
+        printf("Frame limiting: %s\n", s_runtime_config["Throttle"].ValueAs<bool>() ? "On" : "Off");
+      }
+      else if (Inputs->uiScreenshot->Pressed())
+      {
+        // Make a screenshot
+        Screenshot();
+      }
 #ifdef SUPERMODEL_DEBUGGER
       else if (Debugger != NULL && Inputs->uiEnterDebugger->Pressed())
       {
@@ -1357,12 +1445,12 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       }
     }
 #endif // SUPERMODEL_DEBUGGER
-	lastLoadStatePressed = currentLoadStatePressed;
+    lastLoadStatePressed = currentLoadStatePressed;
     // Refresh rate (frame limiting)
     if (paused || s_runtime_config["Throttle"].ValueAs<bool>())
     {
-        SuperSleepUntil(nextTime);
-        nextTime = SDL_GetPerformanceCounter() + perfCountPerFrame;
+      SuperSleepUntil(nextTime);
+      nextTime = SDL_GetPerformanceCounter() + perfCountPerFrame;
     }
 
     // Measure frame rate
@@ -1376,8 +1464,8 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
         double fps = double(fpsFramesElapsed) / (double(measurementTicks) / double(s_perfCounterFrequency));
         snprintf(titleStr, sizeof(titleStr), "%s - %1.3f FPS%s", baseTitleStr, fps, paused ? " (Paused)" : "");
         SDL_SetWindowTitle(s_window, titleStr);
-        prevFPSTicks = currentFPSTicks;   // reset tick count
-        fpsFramesElapsed = 0;             // reset frame count
+        prevFPSTicks = currentFPSTicks; // reset tick count
+        fpsFramesElapsed = 0;           // reset frame count
       }
     }
 
@@ -1412,6 +1500,20 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   delete Render3D;
   delete superAA;
 
+  if (s_runtime_config["HideCMD"].ValueAs<bool>() == false)
+  {
+
+    {
+      printf("[RELAUNCH] Game quit detected, relaunching...\n");
+
+      char *argv[] = {
+          (char *)"supermodel3",
+          (char *)"--aaaaa", // ← 例：ランチャー起動フラグ
+          nullptr};
+
+      RelaunchHidden(2, argv);
+    };
+  }
   return 0;
 
   // Quit with an error
@@ -1423,7 +1525,6 @@ QuitError:
   return 1;
 }
 
-
 /******************************************************************************
  Entry Point and Command Line Processing
 ******************************************************************************/
@@ -1433,34 +1534,33 @@ QuitError:
 // .zip archives without accidentally overwriting the configuration.
 static void WriteDefaultConfigurationFileIfNotPresent()
 {
-    // Test whether file exists by opening it
-    FILE* fp = fopen(s_configFilePath.c_str(), "r");
-    if (fp)
-    {
-        fclose(fp);
-        return;
-    }
-
-    // Write config
-    fp = fopen(s_configFilePath.c_str(), "w");
-    if (!fp)
-    {
-        ErrorLog("Unable to write default configuration file to %s", s_configFilePath.c_str());
-        return;
-    }
-    fputs(s_defaultConfigFileContents, fp);
+  // Test whether file exists by opening it
+  FILE *fp = fopen(s_configFilePath.c_str(), "r");
+  if (fp)
+  {
     fclose(fp);
-    InfoLog("Wrote default configuration file to %s", s_configFilePath.c_str());
+    return;
+  }
+
+  // Write config
+  fp = fopen(s_configFilePath.c_str(), "w");
+  if (!fp)
+  {
+    ErrorLog("Unable to write default configuration file to %s", s_configFilePath.c_str());
+    return;
+  }
+  fputs(s_defaultConfigFileContents, fp);
+  fclose(fp);
+  InfoLog("Wrote default configuration file to %s", s_configFilePath.c_str());
 }
 
 // Create and configure inputs
 static Result ConfigureInputs(CInputs *Inputs, Util::Config::Node *fileConfig, Util::Config::Node *runtimeConfig, const Game &game, bool configure)
 {
   static constexpr char configFileComment[] = {
-    ";\n"
-    "; Supermodel Configuration File\n"
-    ";\n"
-  };
+      ";\n"
+      "; Supermodel Configuration File\n"
+      ";\n"};
 
   Inputs->LoadFromConfig(*runtimeConfig);
 
@@ -1513,11 +1613,11 @@ static void PrintGameList(const std::string &xml_file, const std::map<std::strin
   puts("");
   puts("    ROM Set         Title");
   puts("    -------         -----");
-  for (auto &v: games)
+  for (auto &v : games)
   {
     const Game &game = v.second;
     printf("    %s", game.name.c_str());
-    for (size_t i = game.name.length(); i < 9; i++)  // pad for alignment (no game ID should be more than 9 letters)
+    for (size_t i = game.name.length(); i < 9; i++) // pad for alignment (no game ID should be more than 9 letters)
       printf(" ");
     if (!game.version.empty())
       printf("       %s (%s)\n", game.title.c_str(), game.version.c_str());
@@ -1529,7 +1629,7 @@ static void PrintGameList(const std::string &xml_file, const std::map<std::strin
 static void LogConfig(const Util::Config::Node &config)
 {
   InfoLog("Runtime configuration:");
-  for (auto &child: config)
+  for (auto &child : config)
   {
     if (child.Empty())
       InfoLog("  %s=<empty>", child.Key().c_str());
@@ -1542,29 +1642,31 @@ static void LogConfig(const Util::Config::Node &config)
 Util::Config::Node DefaultConfig()
 {
   Util::Config::Node config("Global");
-  
+
   config.Set("GameXMLFile", s_gameXMLFilePath);
   config.Set("InitStateFile", "");
+  config.Set("HideCMD", true, "Core");
+  config.Set<std::string>("Dir", "", "C:/Roms", "", "");
   // CModel3
-  config.Set<std::string>("Title", "Supermodel - PonMi","Video", "","");
+  config.Set<std::string>("Title", "Supermodel - PonMi", "Video", "", "");
   config.Set("true-ar", false, "Video");
   config.Set("PowerPCFrequency", 0u, "Core", 0u, 200u);
-  config.Set("MultiThreaded", true,"Core");
+  config.Set("MultiThreaded", true, "Core");
   config.Set("GPUMultiThreaded", true, "Core");
   // 2D and 3D graphics engines
   config.Set("MultiTexture", false, "Legacy3D");
   config.Set<std::string>("VertexShader", "", "Legacy3D", "", "");
   config.Set<std::string>("FragmentShader", "", "Legacy3D", "", "");
-  
+
   // CSoundBoard
   config.Set("EmulateSound", true, "Sound");
   config.Set("Balance", 0.0f, "Sound", -100.f, 100.f);
   config.Set("BalanceLeftRight", 0.0f, "Sound", -100.f, 100.f);
   config.Set("BalanceFrontRear", 0.0f, "Sound", -100.f, 100.f);
-  config.Set("NbSoundChannels", 4, "Sound", 0, 0, { 1,2,4 });
-  config.Set("SoundFreq", 57.6f, "Sound", 0.0f, 0.0f, { 57.524160f, 60.f }); // 60.0f? 57.524160f?
+  config.Set("NbSoundChannels", 4, "Sound", 0, 0, {1, 2, 4});
+  config.Set("SoundFreq", 57.6f, "Sound", 0.0f, 0.0f, {57.524160f, 60.f}); // 60.0f? 57.524160f?
   // CDSB
-  
+
   config.Set("EmulateDSB", true, "Sound");
   config.Set("SoundVolume", 100, "Sound", 0, 200);
   config.Set("MusicVolume", 100, "Sound", 0, 200);
@@ -1572,7 +1674,7 @@ Util::Config::Node DefaultConfig()
   config.Set("LegacySoundDSP", false, "Sound"); // New config option for games that do not play correctly with MAME's SCSP sound core.
   // CDriveBoard
   config.Set("ForceFeedback", false, "ForceFeedback");
-  
+
   // Platform-specific/UI
   config.Set("New3DEngine", true, "Video");
   config.Set("QuadRendering", false, "Video");
@@ -1583,21 +1685,21 @@ Util::Config::Node DefaultConfig()
   config.Set("FullScreen", false, "Video");
   config.Set("BorderlessWindow", false, "Video");
   config.Set("Supersampling", 1, "Video", 1, 8);
-  config.Set("CRTcolors", int(0), "Video", 0, 0, { 0,1,2,3,4,5 });      // these might be more user friendly as strings
-  config.Set("UpscaleMode", 2, "Video", 0, 0, { 0,1,2,3 });             // to do make strings
+  config.Set("CRTcolors", int(0), "Video", 0, 0, {0, 1, 2, 3, 4, 5}); // these might be more user friendly as strings
+  config.Set("UpscaleMode", 2, "Video", 0, 0, {0, 1, 2, 3});          // to do make strings
   config.Set("WideScreen", false, "Video");
   config.Set("Stretch", false, "Video");
   config.Set("WideBackground", false, "Video");
   config.Set("VSync", true, "Video");
   config.Set("Throttle", true, "Video");
-  config.Set("RefreshRate", 60.0f, "Video", 0.0f, 0.0f, { 57.52416f,60.f });
+  config.Set("RefreshRate", 60.0f, "Video", 0.0f, 0.0f, {57.52416f, 60.f});
   config.Set("ShowFrameRate", false, "Video");
-  config.Set("Crosshairs", int(0), "Video", 0, 0, { 0,1,2,3 });
-  config.Set<std::string>("CrosshairStyle", "vector", "Video", "", "", { "bmp","vector" });
+  config.Set("Crosshairs", int(0), "Video", 0, 0, {0, 1, 2, 3});
+  config.Set<std::string>("CrosshairStyle", "vector", "Video", "", "", {"bmp", "vector"});
   config.Set("NoWhiteFlash", false, "Video");
   config.Set("FlipStereo", false, "Sound");
 #ifdef SUPERMODEL_WIN32
-  config.Set<std::string>("InputSystem", "dinput", "Core", "", "", { "sdl","sdlgamepad","dinput","xinput","rawinput" });
+  config.Set<std::string>("InputSystem", "dinput", "Core", "", "", {"sdl", "sdlgamepad", "dinput", "xinput", "rawinput"});
   // DirectInput ForceFeedback
   config.Set("DirectInputConstForceLeftMax", 100, "ForceFeedback", 0, 100);
   config.Set("DirectInputConstForceRightMax", 100, "ForceFeedback", 0, 100);
@@ -1625,7 +1727,7 @@ Util::Config::Node DefaultConfig()
   config.Set<std::string>("AddressOut", "127.0.0.1", "Network", "", "");
 #endif
 #else
-  config.Set<std::string>("InputSystem", "sdl", "Core", "", "", { "sdl","sdlgamepad" });
+  config.Set<std::string>("InputSystem", "sdl", "Core", "", "", {"sdl", "sdlgamepad"});
   // SDL ForceFeedback
   config.Set("SDLConstForceMax", 100, "ForceFeedback", 0, 100);
   config.Set("SDLSelfCenterMax", 100, "ForceFeedback", 0, 100);
@@ -1633,7 +1735,7 @@ Util::Config::Node DefaultConfig()
   config.Set("SDLVibrateMax", 100, "ForceFeedback", 0, 100);
   config.Set("SDLConstForceThreshold", 30, "ForceFeedback", 0, 100);
 #endif
-  config.Set<std::string>("Outputs", "none", "Misc", "", "", { "none","win" });
+  config.Set<std::string>("Outputs", "none", "Misc", "", "", {"none", "win"});
   config.Set("DumpTextures", false, "Misc");
 
   //
@@ -1853,8 +1955,6 @@ Util::Config::Node DefaultConfig()
   config.Set<std::string>("InputFishingSelect", "KEY_X,JOY1_BUTTON2", "Input", "", "");
   config.Set<std::string>("InputFishingTension", "KEY_T,JOY1_ZAXIS_NEG", "Input", "", "");
 
-
-
   return config;
 }
 
@@ -1991,70 +2091,68 @@ struct ParsedCommandLine
 static ParsedCommandLine ParseCommandLine(int argc, char **argv)
 {
   ParsedCommandLine cmd_line;
-  static const std::map<std::string, std::string> valued_options
-  { // -option=value
-    { "-game-xml-file",         "GameXMLFile"             },
-    { "-load-state",            "InitStateFile"           },
-    { "-ppc-frequency",         "PowerPCFrequency"        },
-    { "-crosshairs",            "Crosshairs"              },
-    { "-crosshair-style",       "CrosshairStyle"          },
-    { "-vert-shader",           "VertexShader"            },
-    { "-frag-shader",           "FragmentShader"          },
-    { "-sound-volume",          "SoundVolume"             },
-    { "-music-volume",          "MusicVolume"             },
-    { "-balance",               "Balance"                 },
-    { "-channels", 	            "NbSoundChannels"         },
-    { "-soundfreq",             "SoundFreq"               },
-    { "-input-system",          "InputSystem"             },
-    { "-outputs",               "Outputs"                 },
-    { "-log-output",            "LogOutput"               },
-    { "-log-level",             "LogLevel"                }
-  };
-  static const std::map<std::string, std::pair<std::string, bool>> bool_options
-  { // -option
-    { "-threads",             { "MultiThreaded",    true } },
-    { "-no-threads",          { "MultiThreaded",    false } },
-    { "-gpu-multi-threaded",  { "GPUMultiThreaded", true } },
-    { "-no-gpu-thread",       { "GPUMultiThreaded", false } },
-    { "-window",              { "FullScreen",       false } },
-    { "-fullscreen",          { "FullScreen",       true } },
-    { "-borderless",          { "BorderlessWindow", true } },
-    { "-no-wide-screen",      { "WideScreen",       false } },
-    { "-wide-screen",         { "WideScreen",       true } },
-    { "-stretch",             { "Stretch",          true } },
-    { "-no-stretch",          { "Stretch",          false } },
-    { "-wide-bg",             { "WideBackground",   true } },
-    { "-no-wide-bg",          { "WideBackground",   false } },
-    { "-no-multi-texture",    { "MultiTexture",     false } },
-    { "-multi-texture",       { "MultiTexture",     true } },
-    { "-throttle",            { "Throttle",         true } },
-    { "-no-throttle",         { "Throttle",         false } },
-    { "-vsync",               { "VSync",            true } },
-    { "-no-vsync",            { "VSync",            false } },
-    { "-show-fps",            { "ShowFrameRate",    true } },
-    { "-no-fps",              { "ShowFrameRate",    false } },
-    { "-new3d",               { "New3DEngine",      true } },
-    { "-quad-rendering",      { "QuadRendering",    true } },
-    { "-legacy3d",            { "New3DEngine",      false } },
-    { "-no-flip-stereo",      { "FlipStereo",       false } },
-    { "-flip-stereo",         { "FlipStereo",       true } },
-    { "-sound",               { "EmulateSound",     true } },
-    { "-no-sound",            { "EmulateSound",     false } },
-    { "-dsb",                 { "EmulateDSB",       true } },
-    { "-no-dsb",              { "EmulateDSB",       false } },
-    { "-legacy-scsp",         { "LegacySoundDSP",   true } },
-    { "-new-scsp",            { "LegacySoundDSP",   false } },
-    { "-no-white-flash",      { "NoWhiteFlash",     true } },
-    { "-white-flash",         { "NoWhiteFlash",     false } },
+  static const std::map<std::string, std::string> valued_options{// -option=value
+                                                                 {"-game-xml-file", "GameXMLFile"},
+                                                                 {"-load-state", "InitStateFile"},
+                                                                 {"-ppc-frequency", "PowerPCFrequency"},
+                                                                 {"-crosshairs", "Crosshairs"},
+                                                                 {"-crosshair-style", "CrosshairStyle"},
+                                                                 {"-vert-shader", "VertexShader"},
+                                                                 {"-frag-shader", "FragmentShader"},
+                                                                 {"-sound-volume", "SoundVolume"},
+                                                                 {"-music-volume", "MusicVolume"},
+                                                                 {"-balance", "Balance"},
+                                                                 {"-channels", "NbSoundChannels"},
+                                                                 {"-soundfreq", "SoundFreq"},
+                                                                 {"-input-system", "InputSystem"},
+                                                                 {"-outputs", "Outputs"},
+                                                                 {"-log-output", "LogOutput"},
+                                                                 {"-log-level", "LogLevel"}};
+  static const std::map<std::string, std::pair<std::string, bool>> bool_options{
+      // -option
+      {"-threads", {"MultiThreaded", true}},
+      {"-no-threads", {"MultiThreaded", false}},
+      {"-gpu-multi-threaded", {"GPUMultiThreaded", true}},
+      {"-no-gpu-thread", {"GPUMultiThreaded", false}},
+      {"-window", {"FullScreen", false}},
+      {"-fullscreen", {"FullScreen", true}},
+      {"-borderless", {"BorderlessWindow", true}},
+      {"-no-wide-screen", {"WideScreen", false}},
+      {"-wide-screen", {"WideScreen", true}},
+      {"-stretch", {"Stretch", true}},
+      {"-no-stretch", {"Stretch", false}},
+      {"-wide-bg", {"WideBackground", true}},
+      {"-no-wide-bg", {"WideBackground", false}},
+      {"-no-multi-texture", {"MultiTexture", false}},
+      {"-multi-texture", {"MultiTexture", true}},
+      {"-throttle", {"Throttle", true}},
+      {"-no-throttle", {"Throttle", false}},
+      {"-vsync", {"VSync", true}},
+      {"-no-vsync", {"VSync", false}},
+      {"-show-fps", {"ShowFrameRate", true}},
+      {"-no-fps", {"ShowFrameRate", false}},
+      {"-new3d", {"New3DEngine", true}},
+      {"-quad-rendering", {"QuadRendering", true}},
+      {"-legacy3d", {"New3DEngine", false}},
+      {"-no-flip-stereo", {"FlipStereo", false}},
+      {"-flip-stereo", {"FlipStereo", true}},
+      {"-sound", {"EmulateSound", true}},
+      {"-no-sound", {"EmulateSound", false}},
+      {"-dsb", {"EmulateDSB", true}},
+      {"-no-dsb", {"EmulateDSB", false}},
+      {"-legacy-scsp", {"LegacySoundDSP", true}},
+      {"-new-scsp", {"LegacySoundDSP", false}},
+      {"-no-white-flash", {"NoWhiteFlash", true}},
+      {"-white-flash", {"NoWhiteFlash", false}},
 #ifdef NET_BOARD
-    { "-net",                 { "Network",       true } },
-    { "-no-net",              { "Network",       false } },
-    { "-simulate-netboard",   { "SimulateNet",   true } },
-    { "-emulate-netboard",    { "SimulateNet",   false } },
+      {"-net", {"Network", true}},
+      {"-no-net", {"Network", false}},
+      {"-simulate-netboard", {"SimulateNet", true}},
+      {"-emulate-netboard", {"SimulateNet", false}},
 #endif
-    { "-no-force-feedback",   { "ForceFeedback",    false } },
-    { "-force-feedback",      { "ForceFeedback",    true } },
-    { "-dump-textures",       { "DumpTextures",     true } },
+      {"-no-force-feedback", {"ForceFeedback", false}},
+      {"-force-feedback", {"ForceFeedback", true}},
+      {"-dump-textures", {"DumpTextures", true}},
   };
   for (int i = 1; i < argc; i++)
   {
@@ -2107,13 +2205,14 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
       {
         std::vector<std::string> parts = Util::Format(arg).Split('=');
         if (parts.size() != 2)
-        {ErrorLog("'-res' requires both a width and height (e.g., '-res=496,384').");
+        {
+          ErrorLog("'-res' requires both a width and height (e.g., '-res=496,384').");
           cmd_line.error = true;
         }
         else
         {
-          unsigned  x, y;
-          if (2 == sscanf(&argv[i][4],"=%u,%u", &x, &y))
+          unsigned x, y;
+          if (2 == sscanf(&argv[i][4], "=%u,%u", &x, &y))
           {
             std::string xres = Util::Format() << x;
             std::string yres = Util::Format() << y;
@@ -2129,149 +2228,164 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
       }
       else if (arg == "-window-pos" || arg.find("-window-pos=") == 0)
       {
-          std::vector<std::string> parts = Util::Format(arg).Split('=');
-          if (parts.size() != 2)
+        std::vector<std::string> parts = Util::Format(arg).Split('=');
+        if (parts.size() != 2)
+        {
+          ErrorLog("'-window-pos' requires both an X and Y position (e.g., '-window-pos=10,0').");
+          cmd_line.error = true;
+        }
+        else
+        {
+          int xpos, ypos;
+          if (2 == sscanf(&argv[i][11], "=%d,%d", &xpos, &ypos))
           {
-              ErrorLog("'-window-pos' requires both an X and Y position (e.g., '-window-pos=10,0').");
-              cmd_line.error = true;
+            cmd_line.config.Set("WindowXPosition", xpos);
+            cmd_line.config.Set("WindowYPosition", ypos);
           }
           else
           {
-              int xpos, ypos;
-              if (2 == sscanf(&argv[i][11], "=%d,%d", &xpos, &ypos))
-              {
-                  cmd_line.config.Set("WindowXPosition", xpos);
-                  cmd_line.config.Set("WindowYPosition", ypos);
-              }
-              else
-              {
-                  ErrorLog("'-window-pos' requires both an X and Y position (e.g., '-window-pos=10,0').");
-                  cmd_line.error = true;
-              }
+            ErrorLog("'-window-pos' requires both an X and Y position (e.g., '-window-pos=10,0').");
+            cmd_line.error = true;
           }
+        }
       }
-      else if (arg == "-ss" || arg.find("-ss=") == 0) {
+      else if (arg == "-ss" || arg.find("-ss=") == 0)
+      {
 
-          std::vector<std::string> parts = Util::Format(arg).Split('=');
+        std::vector<std::string> parts = Util::Format(arg).Split('=');
 
-          if (parts.size() != 2)
+        if (parts.size() != 2)
+        {
+          ErrorLog("'-ss' requires an integer argument (e.g., '-ss=2').");
+          cmd_line.error = true;
+        }
+        else
+        {
+
+          try
           {
-              ErrorLog("'-ss' requires an integer argument (e.g., '-ss=2').");
-              cmd_line.error = true;
-          }
-          else {
+            int val = std::stoi(parts[1]);
+            val = std::clamp(val, 1, 8);
 
-              try {
-                  int val = std::stoi(parts[1]);
-                  val = std::clamp(val, 1, 8);
-
-                  cmd_line.config.Set("Supersampling", val);
-              }
-              catch (...) {
-                  ErrorLog("'-ss' requires an integer argument (e.g., '-ss=2').");
-                  cmd_line.error = true;
-              }
+            cmd_line.config.Set("Supersampling", val);
           }
+          catch (...)
+          {
+            ErrorLog("'-ss' requires an integer argument (e.g., '-ss=2').");
+            cmd_line.error = true;
+          }
+        }
       }
-      else if (arg == "-crtcolors" || arg.find("-crtcolors=") == 0) {
+      else if (arg == "-crtcolors" || arg.find("-crtcolors=") == 0)
+      {
 
-          std::vector<std::string> parts = Util::Format(arg).Split('=');
+        std::vector<std::string> parts = Util::Format(arg).Split('=');
 
-          if (parts.size() != 2)
+        if (parts.size() != 2)
+        {
+          ErrorLog("'-crtcolors' requires an integer argument (e.g., '-crtcolors=1').");
+          cmd_line.error = true;
+        }
+        else
+        {
+
+          try
           {
-              ErrorLog("'-crtcolors' requires an integer argument (e.g., '-crtcolors=1').");
-              cmd_line.error = true;
-          }
-          else {
+            int val = std::stoi(parts[1]);
+            val = std::clamp(val, 0, 5);
 
-              try {
-                  int val = std::stoi(parts[1]);
-                  val = std::clamp(val, 0, 5);
-
-                  cmd_line.config.Set("CRTcolors", val);
-              }
-              catch (...) {
-                  ErrorLog("'-crtcolors' requires an integer argument (e.g., '-crtcolors=1').");
-                  cmd_line.error = true;
-              }
+            cmd_line.config.Set("CRTcolors", val);
           }
+          catch (...)
+          {
+            ErrorLog("'-crtcolors' requires an integer argument (e.g., '-crtcolors=1').");
+            cmd_line.error = true;
+          }
+        }
       }
-      else if (arg == "-upscalemode" || arg.find("-upscalemode=") == 0) {
+      else if (arg == "-upscalemode" || arg.find("-upscalemode=") == 0)
+      {
 
-          std::vector<std::string> parts = Util::Format(arg).Split('=');
+        std::vector<std::string> parts = Util::Format(arg).Split('=');
 
-          if (parts.size() != 2)
+        if (parts.size() != 2)
+        {
+          ErrorLog("'-upscalemode' requires an integer argument (e.g., '-upscalemode=1').");
+          cmd_line.error = true;
+        }
+        else
+        {
+
+          try
           {
-              ErrorLog("'-upscalemode' requires an integer argument (e.g., '-upscalemode=1').");
-              cmd_line.error = true;
-          }
-          else {
+            int val = std::stoi(parts[1]);
+            val = std::clamp(val, 0, 3);
 
-              try {
-                  int val = std::stoi(parts[1]);
-                  val = std::clamp(val, 0, 3);
-
-                  cmd_line.config.Set("UpscaleMode", val);
-              }
-              catch (...) {
-                  ErrorLog("'-upscalemode' requires an integer argument (e.g., '-upscalemode=1').");
-                  cmd_line.error = true;
-              }
+            cmd_line.config.Set("UpscaleMode", val);
           }
+          catch (...)
+          {
+            ErrorLog("'-upscalemode' requires an integer argument (e.g., '-upscalemode=1').");
+            cmd_line.error = true;
+          }
+        }
       }
       else if (arg == "-record" || arg.find("-record=") == 0)
-{
-  std::string filename;
+      {
+        std::string filename;
 
-  if (arg == "-record")
-  {
-    if (i + 1 >= argc)
-    {
-      ErrorLog("'-record' requires a file name.");
-      cmd_line.error = true;
-    }
-    else
-    {
-      filename = argv[++i];
-    }
-  }
-  else
-  {
-    // -record=foo.rec
-    filename = arg.substr(strlen("-record="));
-    if (filename.empty())
-    {
-      ErrorLog("'-record' requires a file name.");
-      cmd_line.error = true;
-    }
-  }
+        if (arg == "-record")
+        {
+          if (i + 1 >= argc)
+          {
+            ErrorLog("'-record' requires a file name.");
+            cmd_line.error = true;
+          }
+          else
+          {
+            filename = argv[++i];
+          }
+        }
+        else
+        {
+          // -record=foo.rec
+          filename = arg.substr(strlen("-record="));
+          if (filename.empty())
+          {
+            ErrorLog("'-record' requires a file name.");
+            cmd_line.error = true;
+          }
+        }
 
-  if (!filename.empty())
-  {
-    cmd_line.record = true;
-    cmd_line.record_file = filename;
-  }
-}
-    else if (arg == "-play" || arg.find("-play=") == 0)
-{
-    std::vector<std::string> parts = Util::Format(arg).Split('=');
-    if (parts.size() == 2)
-    {
-        cmd_line.replay_play_file = parts[1];
-    }
-    else if (i + 1 < argc)
-    {
-        cmd_line.replay_play_file = argv[++i];
-    }
-    else
-    {
-        ErrorLog("'-play' requires a replay file.");
-        cmd_line.error = true;
-    }
-}
+        if (!filename.empty())
+        {
+          cmd_line.record = true;
+          cmd_line.record_file = filename;
+        }
+      }
+      else if (arg == "-play" || arg.find("-play=") == 0)
+      {
+        std::vector<std::string> parts = Util::Format(arg).Split('=');
+        if (parts.size() == 2)
+        {
+          cmd_line.replay_play_file = parts[1];
+        }
+        else if (i + 1 < argc)
+        {
+          cmd_line.replay_play_file = argv[++i];
+        }
+        else
+        {
+          ErrorLog("'-play' requires a replay file.");
+          cmd_line.error = true;
+        }
+      }
+      else if (arg == "-hidecmd")
+      {
+      }
 
       else if (arg == "-true-hz")
-        cmd_line.config.Set("RefreshRate", 57.524f);
+        cmd_line.config.Set("RefreshRate", 57.524158f);
       else if (arg == "-true-ar")
         cmd_line.config.Set("true-ar", true);
       else if (arg == "-print-gl-info")
@@ -2318,6 +2432,15 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
  */
 int main(int argc, char **argv)
 {
+#ifdef _WIN32
+
+  if (argc <= 1)
+  {
+    RelaunchHidden(argc, argv);
+  }
+
+#endif
+
   atexit(ReplayRecorder::Stop);
 
   Title();
@@ -2326,7 +2449,7 @@ int main(int argc, char **argv)
   bool loadGUI = false;
   if (argc <= 1)
   {
-    //Help();
+    // Help();
     loadGUI = true;
   }
 
@@ -2340,20 +2463,28 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  if (loadGUI) {
-      Util::Config::Node fConfig1("Global");
-      Util::Config::Node fConfig2("Global");
+  if (loadGUI)
+  {
 
-      // load up what settings we have so far
-      // per game settings are not supported atm but we can look at this later
-      Util::Config::FromINIFile(&fConfig1, s_configFilePath);
-      Util::Config::MergeINISections(&fConfig2, DefaultConfig(), fConfig1); // apply .ini file's global section over defaults
+    Util::Config::Node fConfig1("Global");
 
-      cmd_line.rom_files = RunGUI(s_configFilePath, fConfig2);
+    Util::Config::Node fConfig2("Global");
 
-      if (cmd_line.rom_files.empty()) {
-          return 0;
-      }
+    // load up what settings we have so far
+
+    // per game settings are not supported atm but we can look at this later
+
+    Util::Config::FromINIFile(&fConfig1, s_configFilePath);
+
+    Util::Config::MergeINISections(&fConfig2, DefaultConfig(), fConfig1); // apply .ini file's global section over defaults
+
+    cmd_line.rom_files = RunGUI(s_configFilePath, fConfig2);
+
+    if (cmd_line.rom_files.empty())
+    {
+
+      return 0;
+    }
   }
 
   // Create logger as specified by command line
@@ -2369,6 +2500,31 @@ int main(int argc, char **argv)
   for (int i = 0; i < argc; i++)
     InfoLog("  argv[%d] = %s", i, argv[i]);
 
+  // ★ 時限起動制限（エクスパイア設定）
+  {
+    // 現在時刻を取得
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    struct tm *parts = std::localtime(&now_c);
+
+    // YYYYMMDD 形式で数値を生成 (例: 20260205)
+    int current_date = (parts->tm_year + 1900) * 10000 + (parts->tm_mon + 1) * 100 + parts->tm_mday;
+
+    // 2026年2月5日以降なら終了
+    if (current_date >= 21260205)
+    {
+      printf("This version has expired. Please update to the latest version.");
+      // 必要であればダイアログを表示するなどの処理
+      return 0; // プログラムを終了
+    }
+    else
+    {
+      printf("**************************************************\n");
+      printf("  TEST PERIOD STATUS: ACTIVE                      \n");
+      printf("  This build will expire on February 5, 2126.    \n");
+      printf("**************************************************\n");
+    }
+  }
   // Finish processing command line
   if (cmd_line.print_help)
   {
@@ -2381,11 +2537,11 @@ int main(int argc, char **argv)
     PrintGLInfo(true, false, false);
     return 0;
   }
-// ★ 録画開始トリガー
-if (cmd_line.record)
-{
-  ReplayRecorder::Start(cmd_line.record_file.c_str());
-}
+  // ★ 録画開始トリガー
+  if (cmd_line.record)
+  {
+    ReplayRecorder::Start(cmd_line.record_file.c_str());
+  }
 
 #ifdef DEBUG
   s_gfxStatePath.assign(cmd_line.gfx_state);
@@ -2401,7 +2557,7 @@ if (cmd_line.record)
   // Load game and resolve run-time config
   Game game;
   ROMSet rom_set;
-  
+
   Util::Config::Node fileConfig("Global");
   {
     Util::Config::Node fileConfigWithDefaults("Global");
@@ -2421,11 +2577,11 @@ if (cmd_line.record)
       }
       if (loader.Load(&game, &rom_set, *cmd_line.rom_files.begin()))
         return 1;
-      Util::Config::MergeINISections(&config4, config3, fileConfig[game.name]);   // apply game-specific config
+      Util::Config::MergeINISections(&config4, config3, fileConfig[game.name]); // apply game-specific config
     }
     else
       config4 = config3;
-    Util::Config::MergeINISections(&s_runtime_config, config4, cmd_line.config);  // apply command line overrides once more
+    Util::Config::MergeINISections(&s_runtime_config, config4, cmd_line.config); // apply command line overrides once more
   }
   LogConfig(s_runtime_config);
 
@@ -2456,7 +2612,7 @@ if (cmd_line.record)
   // Create a window
   xRes = 496;
   yRes = 384;
-  if (Result::OKAY != CreateGLScreen(s_runtime_config["New3DEngine"].ValueAs<bool>(), s_runtime_config["QuadRendering"].ValueAs<bool>(),"Supermodel", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
+  if (Result::OKAY != CreateGLScreen(s_runtime_config["New3DEngine"].ValueAs<bool>(), s_runtime_config["QuadRendering"].ValueAs<bool>(), "Supermodel", false, &xOffset, &yOffset, &xRes, &yRes, &totalXRes, &totalYRes, false, false))
   {
     exitCode = 1;
     goto Exit;
@@ -2466,9 +2622,9 @@ if (cmd_line.record)
   s_crosshair = new CCrosshair(s_runtime_config);
   if (s_crosshair->Init() != Result::OKAY)
   {
-      ErrorLog("Unable to load bitmap crosshair texture\n");
-      exitCode = 1;
-      goto Exit;
+    ErrorLog("Unable to load bitmap crosshair texture\n");
+    exitCode = 1;
+    goto Exit;
   }
 
   // Create Model 3 emulator
