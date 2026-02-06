@@ -12,9 +12,18 @@ First and foremost, I would like to express my deepest gratitude to **Bart Trzyn
 
 ## ✨ Features Added in this Fork
 
+### 💎 Integrated Identity & Visuals
+* **Native Icon Branding:** No longer a generic executable. The "PonMi" soul is now embedded directly into the binary, ensuring a distinct presence in your toolkit.
+  ![0071](https://github.com/user-attachments/assets/34e3d9e7-a11c-492d-966b-aba3784aa6e5)
+
+* **Streamlined GUI Workflow:** Integrated natively with the latest OSD (On-Screen Display) logic. Every experimental feature—from scanlines to netplay offsets—is now at your fingertips, bridging the gap between raw power and user accessibility.
+
+<img width="1280" height="960" alt="image" src="https://github.com/user-attachments/assets/e07b38bf-ec70-4d6e-883f-dd91e70f5bd0" />
+
+
 ### 🎮 Deterministic Replay System
 
-<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/17f179a5-39f4-4231-9ca8-4c927e09d802"/>
+<img width="1280" height="960" alt="image" src="https://github.com/user-attachments/assets/17f179a5-39f4-4231-9ca8-4c927e09d802"/>
 
 A frame-accurate input recording system designed for perfect synchronization, specifically optimized for technical gameplay in titles like *Spikeout FE*.
 
@@ -35,7 +44,7 @@ Fully compatible with **[Sega-Model-3-UI](https://github.com/BackPonBeauty/Sega-
 
 ### 📺 Advanced CRT Emulation
 
-<img width="640" height="480" alt="image" src="https://github.com/user-attachments/assets/18fba7fd-38bc-4281-8b80-af7768319854" />
+<img width="1280" height="960" alt="image" src="https://github.com/user-attachments/assets/18fba7fd-38bc-4281-8b80-af7768319854" />
 
 
 Recreates the nostalgic visual aesthetics of 90s arcade cabinets.
@@ -50,11 +59,11 @@ Recreates the nostalgic visual aesthetics of 90s arcade cabinets.
 Add or modify these lines in your `Supermodel.ini` to tune the visuals:
 
 ```ini
-; Barrel Distortion Strength (Recommended: 0.01 - 0.04)
-barrelStrength = 0.02
+; Barrel Distortion Strength (0 - 10)
+barrelStrength = 1
 
-; CRT Scanline Intensity (Recommended: 0.8)
-scanlineStrength = 0.8
+; CRT Scanline Intensity (0 - 10)
+scanlineStrength = 1
 
 ```
 
@@ -117,9 +126,11 @@ We didn't just replicate the past; we transcended it by adding features that def
 * **Internal Latency Reduction:** Software overhead—once roughly **5ms** due to standard OS/TCP buffering—has been slashed to **under 1ms**. ⏱️
 * **Stability:** High-speed synchronization is now confirmed across the entire Model 3 library, including *Spikeout*, *Dirt Devils*, and *Ski Champ*. 🎮
 
-## 🏁 5. Conclusion: Mission Accomplished
+## 🏁 5. Conclusion: Beyond the Simulation
 
-The mission to return to 1999 is complete. By stripping away implementation inefficiencies and adding the "IF" factors of modern technology, we have created a low-latency environment that mimics—and in many ways exceeds—a physical link cable. The ghosts of the arcade have been captured in code.
+The mission to return to 1999 has entered its final phase. We haven't just optimized the code; we've redefined the "vibe." By stripping away implementation inefficiencies and wrapping the engine in a bespoke, high-performance GUI environment, we have created more than an emulator. 
+
+It is a time machine, now polished with a visual identity that honors the ghosts we've been chasing. The link play is stable, the visuals are authentic, and the interface is seamless. 
 
 ---
 
@@ -129,7 +140,7 @@ The mission to return to 1999 is complete. By stripping away implementation inef
 
 ---
 
-**Status: [ARCHIVED / FULLY OPERATIONAL]**
+**Status: [FULLY OPERATIONAL]**
 
 ## 👤 Author
 
