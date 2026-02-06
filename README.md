@@ -13,8 +13,14 @@ First and foremost, I would like to express my deepest gratitude to **Bart Trzyn
 ## ✨ Features Added in this Fork
 
 ### 💎 Integrated Identity & Visuals
+
 * **Native Icon Branding:** No longer a generic executable. The "PonMi" soul is now embedded directly into the binary, ensuring a distinct presence in your toolkit.
-  ![0071](https://github.com/user-attachments/assets/34e3d9e7-a11c-492d-966b-aba3784aa6e5)
+* **Widescreen Side-Panel Overlay:** An immersive visual feature that utilizes the "dead space" on widescreen monitors. 
+    * **Dynamic Art Loading:** Simply place a `gamename.jpg` inside the `/image` folder to display custom bezel art or move-lists alongside the game screen.
+    * **Minimalist Design:** No toggles, no menus. The overlay is presence-based—to disable, simply rename or remove the image file. It’s built for those who prefer the authentic arcade aesthetic over complex configurations.
+    
+<img width="1282" height="747" alt="image" src="https://github.com/user-attachments/assets/692fe5b0-957d-47d8-b712-7105e648a205" />
+
 
 * **Streamlined GUI Workflow:** Integrated natively with the latest OSD (On-Screen Display) logic. Every experimental feature—from scanlines to netplay offsets—is now at your fingertips, bridging the gap between raw power and user accessibility.
 
