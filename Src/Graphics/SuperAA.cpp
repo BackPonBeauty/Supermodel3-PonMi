@@ -6,7 +6,7 @@
 
 SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle) : m_aa(aaValue),
                                                                                                                                                     m_crtcolors(CRTcolors),
-                                                                                                                                                    m_scanlineEnable(true),
+                                                                                                                                                    m_scanlineEnable(false),
                                                                                                                                                     m_scanlineStrength(1 - (scanlineStrength / 10.0f)),
                                                                                                                                                     m_barrelEffectEnable(true),
                                                                                                                                                     m_barrelStrength(ubarrelStrength / 100.0f),
