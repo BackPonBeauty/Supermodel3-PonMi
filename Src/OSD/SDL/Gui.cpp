@@ -287,7 +287,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
          char *bufPortIn, char *bufPortOut, char *bufAddressOut)
 {
     // 基本スケールの計算
-    float scale = io.DisplaySize.x / 1024.0f;
+    float scale = io.DisplaySize.y / 600.0f;
     if (scale < 0.5f)
         scale = 0.5f;
 
@@ -340,7 +340,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
     // 左カラムの幅をウィンドウの50%に自動計算（追従）
     float leftPaneWidth = io.DisplaySize.x * 0.35f;
     float splitterWidth = 8.0f;
-    float imageAreaHeight = 300.0f * scale;
+    float imageAreaHeight = 200.0f * scale;
     float upperContentHeight = ImGui::GetContentRegionAvail().y - imageAreaHeight - footerHeight - (20.0f * scale);
     float listAreaHeight = upperContentHeight - imageAreaHeight - ImGui::GetStyle().ItemSpacing.y;
     float optionsHeight = upperContentHeight - ImGui::GetStyle().ItemSpacing.y + imageAreaHeight;
@@ -1732,15 +1732,11 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     ImGuiIO &io = ImGui::GetIO();
 
     ImFontConfig font_cfg;
-    font_cfg.FontDataOwnedByAtlas = false;
-    io.Fonts->AddFontFromMemoryTTF((void *)Font01_data, sizeof(Font01_data), 16.0f, &font_cfg);
-
-    ImGui_ImplSDL2_InitForOpenGL(window, glContext);
-    ImGui_ImplOpenGL3_Init("#version 150");
 
     // --- ここから追加：SelectedGameIdx を自力で読み出す ---
     int selectedGame = -1;
     bool startMaximized = false;
+    float fontSize =16.0f;
     {
         std::ifstream ifs("ponmi.ini");
         if (ifs.is_open())
@@ -1764,10 +1760,24 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
                 {
                     startMaximized = (val == "1"); // boolは 0 か 1 で保存されているため
                 }
+                else if (key == "FontSize")
+                {
+                    fontSize = std::stof(val);
+                }
             }
         }
         ifs.close();
     }
+
+
+    font_cfg.FontDataOwnedByAtlas = false;
+    io.Fonts->AddFontFromMemoryTTF((void *)Font01_data, sizeof(Font01_data), fontSize, &font_cfg);
+
+    ImGui_ImplSDL2_InitForOpenGL(window, glContext);
+    ImGui_ImplOpenGL3_Init("#version 150");
+
+
+    
     uint32_t window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (startMaximized)
     {
@@ -1986,6 +1996,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
             ofs << "[Settings]\n";
             ofs << "SelectedGameIdx=" << selectedGame << "\n";
             ofs << "Maximized=" << isMaximized << "\n";
+            ofs << "FontSize=" << fontSize << "\n";
             // 今後、他にも保存したいものがあればここに追記できる
             ofs.close();
             saveSettings = false;
