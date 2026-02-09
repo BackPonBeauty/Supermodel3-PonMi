@@ -66,6 +66,7 @@ static float RefreshRate = 60.0f;
 static bool record = false;
 static bool replay = false;
 static std::string replayFilename = "";
+static std::string s_Dir ="";
 namespace fs = std::filesystem;
 
 static void SaveSupermodelConfig(const std::string &path, std::map<std::string, std::string> &updates)
@@ -189,7 +190,7 @@ static std::string GetRomPath(int selectedGame, const std::map<std::string, Game
     if (selectedGame >= 0)
     {
         int index = 0;
-        std::string romDir = config["Dir"].ValueAs<std::string>();
+        std::string romDir = s_Dir;
 
         for (auto &pair : games)
         {
@@ -225,7 +226,7 @@ static bool CheckRomExists(
     // ★ Dir の存在チェック（Hasが無いので例外で判定）
     try
     {
-        romDir = config["Dir"].ValueAs<std::string>();
+        romDir = s_Dir;
     }
     catch (const std::exception &e)
     {
@@ -1323,7 +1324,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     float titleWidth = ImGui::CalcTextSize(title).x;
                     ImGui::SetCursorPosX((windowWidth - titleWidth) * 0.5f);
                     ImGui::Text(title);
-                
+
                     // --- 2. バージョンをセンター揃え ---
                     const char *ver = "ver. 2026.02.06";
                     float verWidth = ImGui::CalcTextSize(ver).x;
@@ -1411,7 +1412,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     ImGui::SetCursorPosX((availWidth - thanksTitleWidth) * 0.5f);
                     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), thanksTitle);
 
-                                // 2. 感謝のリスト（構造体や配列で回すと綺麗だぜ）
+                    // 2. 感謝のリスト（構造体や配列で回すと綺麗だぜ）
                     struct Gratitude
                     {
                         const char *category;
@@ -1432,7 +1433,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                         ImGui::SetWindowFontScale(scale);
                         float catWidth = ImGui::CalcTextSize(item.category).x;
                         ImGui::SetCursorPosX((availWidth - catWidth) * 0.5f);
-                        //ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), item.category);
+                        // ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), item.category);
                         ImGui::Text(item.category);
 
                         // 名前（通常サイズ）
@@ -1480,7 +1481,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
             }
         }
         ImGui::SameLine(0, spacing);
-
+        //std::string Dir = config["Dir"].ValueAs<std::string>();
         // --- 追加：ROMパス設定エリア ---
         // 2. フォルダ選択ボタン
         if (ImGui::Button("DIR...", ImVec2(80.0f * scale, -1)))
@@ -1516,7 +1517,6 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                 pclose(f);
             }
             */
-#endif
 
             if (!pickedPath.empty())
             {
@@ -1526,20 +1526,20 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     if (c == '\\')
                         c = '/';
                 }
-                config.Set("Dir", pickedPath);
+                //config.Set("Dir", pickedPath);
+                s_Dir = pickedPath;
             }
         }
-
+#endif
         ImGui::SameLine(0, spacing);
 
-        std::string Dir = config["Dir"].ValueAs<std::string>();
         // std::string Dir = config["Dir"].ValueAs<std::string>();
         // std::string Dir = config.Get("Supermodel3UI").Get("Dir").ValueAs<std::string>();
-        std::replace(Dir.begin(), Dir.end(), '\\', '/');
+        std::replace(s_Dir.begin(), s_Dir.end(), '\\', '/');
 
         // ImGuiで編集するための作業用バッファ
         char pathBuf[512];
-        strncpy(pathBuf, Dir.c_str(), sizeof(pathBuf));
+        strncpy(pathBuf, s_Dir.c_str(), sizeof(pathBuf));
         pathBuf[sizeof(pathBuf) - 1] = '\0';
 
         // テキストボックスの横幅を、残りのスペースに合わせて自動計算
@@ -1551,7 +1551,8 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
             std::string newPath = std::string(pathBuf);
             // ユーザーが文字を入力した瞬間に config の "Dir" を更新
             std::replace(newPath.begin(), newPath.end(), '\\', '/');
-            config.Set("Dir", std::string(pathBuf));
+            //config.Set("Dir", std::string(pathBuf));
+            s_Dir = newPath;
         }
         // ----------------------------
 
@@ -1702,6 +1703,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     strncpy(bufPortIn, config["PortIn"].ValueAs<std::string>().c_str(), sizeof(bufPortIn));
     strncpy(bufPortOut, config["PortOut"].ValueAs<std::string>().c_str(), sizeof(bufPortOut));
     strncpy(bufAddressOut, config["AddressOut"].ValueAs<std::string>().c_str(), sizeof(bufAddressOut));
+    s_Dir = config["Dir"].ValueAs<std::string>();
 
     struct GuiSettings
     {
@@ -1736,7 +1738,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     // --- ここから追加：SelectedGameIdx を自力で読み出す ---
     int selectedGame = -1;
     bool startMaximized = false;
-    float fontSize =16.0f;
+    float fontSize = 16.0f;
     {
         std::ifstream ifs("ponmi.ini");
         if (ifs.is_open())
@@ -1769,15 +1771,12 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         ifs.close();
     }
 
-
     font_cfg.FontDataOwnedByAtlas = false;
     io.Fonts->AddFontFromMemoryTTF((void *)Font01_data, sizeof(Font01_data), fontSize, &font_cfg);
 
     ImGui_ImplSDL2_InitForOpenGL(window, glContext);
     ImGui_ImplOpenGL3_Init("#version 150");
 
-
-    
     uint32_t window_flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
     if (startMaximized)
     {
@@ -1976,6 +1975,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         u["PortIn"] = bufPortIn;
         u["PortOut"] = bufPortOut;
         u["AddressOut"] = bufAddressOut;
+        u["Dir"] = s_Dir;
 
         // 最後に自作の更新関数を呼ぶ！
         SaveSupermodelConfig(configPath, u);

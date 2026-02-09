@@ -1500,7 +1500,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   delete Render3D;
   delete superAA;
 
-  if (s_runtime_config["HideCMD"].ValueAs<bool>() == false)
+  if (s_runtime_config["HideCMD"].ValueAs<bool>())
   {
 
     {
@@ -1645,7 +1645,7 @@ Util::Config::Node DefaultConfig()
 
   config.Set("GameXMLFile", s_gameXMLFilePath);
   config.Set("InitStateFile", "");
-  config.Set("HideCMD", true, "Core");
+  config.Set("HideCMD", false, "");
   config.Set<std::string>("Dir", "", "C:/Roms", "", "");
   // CModel3
   config.Set<std::string>("Title", "Supermodel - PonMi", "Video", "", "");
@@ -2431,16 +2431,16 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
  * Program entry point.
  */
 int main(int argc, char **argv)
-{
+{/*
 #ifdef _WIN32
 
-  if (argc <= 1)
+  if (s_runtime_config["HideCMD"].ValueAs<bool>() == true)
   {
     RelaunchHidden(argc, argv);
   }
 
 #endif
-
+*/
   atexit(ReplayRecorder::Stop);
 
   Title();
@@ -2467,7 +2467,7 @@ int main(int argc, char **argv)
   {
 
     Util::Config::Node fConfig1("Global");
-
+   
     Util::Config::Node fConfig2("Global");
 
     // load up what settings we have so far
@@ -2477,6 +2477,11 @@ int main(int argc, char **argv)
     Util::Config::FromINIFile(&fConfig1, s_configFilePath);
 
     Util::Config::MergeINISections(&fConfig2, DefaultConfig(), fConfig1); // apply .ini file's global section over defaults
+
+     if (fConfig2["HideCMD"].ValueAs<bool>())
+    {
+      RelaunchHidden(argc, argv);
+    }
 
     cmd_line.rom_files = RunGUI(s_configFilePath, fConfig2);
 
