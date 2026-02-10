@@ -6,7 +6,7 @@ This project is a **fork of the [original Supermodel3](https://github.com/trzy/S
 
 ## 🙏 Acknowledgments
 
-First and foremost, I would like to express my deepest gratitude to **Bart Trzynadlowski, Nikolas Nikas**, and the entire **Supermodel development team**. Their incredible work in documenting and emulating the complex Sega Model 3 hardware has made this project possible. This fork is built upon their solid foundation, with my own experimental features added to enhance the "Arcade Experience."
+First and foremost, I would like to express my deepest gratitude to **Bart Trzynadlowski, Nik Henson**, and the entire **Supermodel development team**. Their incredible work in documenting and emulating the complex Sega Model 3 hardware has made this project possible. This fork is built upon their solid foundation, with my own experimental features added to enhance the "Arcade Experience."
 
 ---
 
