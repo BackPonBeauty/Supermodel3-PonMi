@@ -1188,7 +1188,8 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
                                 std::string cmd = "\"" + std::string(szExePath) + "\"";
                                 cmd += " -record \"" + newReplayFile + "\"";
-                                cmd += " \"roms/" + currentRomName + ".zip\"";
+                                //cmd += " \"roms/" + currentRomName + ".zip\"";
+                                cmd += " \"" + s_Dir + "/" + currentRomName + ".zip\"";
 
                                 STARTUPINFOA si = {sizeof(si)};
                                 PROCESS_INFORMATION pi;
@@ -1234,7 +1235,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                                     // fullPath が "Replays/xxx.rec" なので、そのままぶち込む！
                                     std::string cmd = "\"" + std::string(szExePath) + "\"";
                                     cmd += " -play \"" + fullPath + "\"";
-                                    cmd += " \"roms/" + romName + ".zip\"";
+                                    cmd += " \"" + s_Dir + "/" + romName + ".zip\"";
 
                                     // 4. プロセス起動
                                     STARTUPINFOA si = {sizeof(si)};
