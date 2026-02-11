@@ -764,7 +764,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     ImGui::Text("Scanline Strength");
                     ImGui::SameLine(150.0f * scale);
                     ImGui::PushItemWidth(-1);
-                    if (ImGui::SliderInt("##Scanline", &Scanline, 1, 10))
+                    if (ImGui::SliderInt("##Scanline", &Scanline, 1, 100))
                     {
                         // config.Set("PowerPCFrequency", (int64_t)ppcFreq); // 必要に応じてconfigへ
                         saveSettings = true;

@@ -4,17 +4,18 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle) : m_aa(aaValue),
-                                                                                                                                                    m_crtcolors(CRTcolors),
-                                                                                                                                                    m_scanlineEnable(false),
-                                                                                                                                                    m_scanlineStrength(1 - (scanlineStrength / 10.0f)),
-                                                                                                                                                    m_barrelEffectEnable(true),
-                                                                                                                                                    m_barrelStrength(ubarrelStrength / 100.0f),
-                                                                                                                                                    m_totalXRes(totalXRes),
-                                                                                                                                                    m_totalYRes(totalYRes),
-                                                                                                                                                    m_vao(0),
-                                                                                                                                                    m_width(0),
-                                                                                                                                                    m_height(0)
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen) : m_aa(aaValue),
+                                                                                                                                                                     m_crtcolors(CRTcolors),
+                                                                                                                                                                     m_scanlineEnable(false),
+                                                                                                                                                                     m_scanlineStrength(1 - (scanlineStrength / 100.0f)),
+                                                                                                                                                                     m_barrelEffectEnable(true),
+                                                                                                                                                                     m_barrelStrength(ubarrelStrength / 100.0f),
+                                                                                                                                                                     m_totalXRes(totalXRes),
+                                                                                                                                                                     m_totalYRes(totalYRes),
+                                                                                                                                                                     m_vao(0),
+                                                                                                                                                                     m_width(0),
+                                                                                                                                                                     m_height(0),
+                                                                                                                                                                     m_wideScreen(wideScreen)
 {
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
@@ -266,8 +267,8 @@ void SuperAA::Init(int width, int height)
         m_fbo.Destroy();
         m_fbo.Create(width * m_aa, height * m_aa);
         m_fbo2.Create(width * m_aa, height * m_aa);
-        m_width = width ;
-        m_height = height ;
+        m_width = width;
+        m_height = height;
     }
 }
 // m_fbo.Destroy();
@@ -304,7 +305,7 @@ void SuperAA::Draw()
 
     // --- 2. オーバーレイの描画 ---
     // AAの設定（m_aa > 1等）に関わらず、テクスチャがあれば必ず実行するよう外に出しました。//m_overlayTex != 0
-    if (m_overlayTex != 0)
+    if (m_overlayTex != 0 && m_wideScreen)
     {
         // 現在のViewport（ゲーム画面用の4:3など）を一時保存
         GLint last_viewport[4];
