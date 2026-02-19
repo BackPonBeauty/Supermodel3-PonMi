@@ -66,8 +66,10 @@ static float RefreshRate = 60.0f;
 static bool record = false;
 static bool replay = false;
 static std::string replayFilename = "";
-static std::string s_Dir ="";
+static std::string s_Dir = "";
 namespace fs = std::filesystem;
+static float uImageAreaRatioH = 0.5f;
+static float uImageAreaRatioW = 0.5f;
 
 static void SaveSupermodelConfig(const std::string &path, std::map<std::string, std::string> &updates)
 {
@@ -277,9 +279,9 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
          bool &exit, bool &exitLaunch, bool &saveSettings, SDL_Window *window,
          int &selectedResIndex, int &engineSelection, bool &vVsync, bool &vQuadRendering,
          bool &vGPUMultiThreaded, bool &vMultiThreaded, bool &vMultiTexture,
-         bool &vBorderless, bool &vTrueAR, bool &vFullScreen, bool &vWideScreen,
+         bool &vBorderless, bool &vTrueAR, bool &vOverlay, bool &vFullScreen, bool &vWideScreen,
          bool &vWideBackground, bool &vStretch, bool &vShowFrameRate, bool &vThrottle,
-         bool &vNoWhiteFlash, bool &vTrueHz, int &superSampling, int &selectedCRT, int &selectedUpscale,
+         bool &vNoWhiteFlash, bool &vHideCMD, bool &vTrueHz, int &superSampling, int &selectedCRT, int &selectedUpscale,
          int &ppcFreq, int &WindowXPosition, int &WindowYPosition, int &Scanline, int &Barrel,
          int &musicVol, int &sfxVol, int &balance, bool &vEmulateSound,
          bool &vEmulateDSB, bool &vFlipStereo, bool &vLegacySoundDSP,
@@ -320,7 +322,6 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
         }
     }
 
-    // ボタンの色をピンクに設定（通常、ホバー、アクティブ）
     // Japan Blue (サムライブルー) 系の配色
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.00f, 0.20f, 0.45f, 1.0f));        // 通常：深い紺色 (Japan Blue)
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.00f, 0.35f, 0.70f, 1.0f)); // ホバー：鮮やかな青
@@ -332,22 +333,27 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
     // ウィンドウ全体の基本スケール
     ImGui::SetWindowFontScale(scale);
-    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2");
+    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-02-19)");
     ImGui::Separator();
+    // float headerBottomY = ImGui::GetCursorPosY();
 
     // 高さの計算
-    float footerHeight = 20.0f * scale;
+    float footerHeight = 32.0f * scale;
 
     // 左カラムの幅をウィンドウの50%に自動計算（追従）
-    float leftPaneWidth = io.DisplaySize.x * 0.35f;
-    float splitterWidth = 8.0f;
-    float imageAreaHeight = 200.0f * scale;
-    float upperContentHeight = ImGui::GetContentRegionAvail().y - imageAreaHeight - footerHeight - (20.0f * scale);
-    float listAreaHeight = upperContentHeight - imageAreaHeight - ImGui::GetStyle().ItemSpacing.y;
-    float optionsHeight = upperContentHeight - ImGui::GetStyle().ItemSpacing.y + imageAreaHeight;
+
+    float totalLeftHeight = 720.0f * scale;
+    float totalLeftwidth = 1280.0f * scale;
+
+    float currentImageWidth = totalLeftwidth * uImageAreaRatioW;
+    // float splitterWidth = 8.0f;
+    float currentImageHeight = totalLeftHeight * uImageAreaRatioH;
+    float upperContentHeight = ImGui::GetContentRegionAvail().y - currentImageHeight - footerHeight;
+    // float listAreaHeight = upperContentHeight - currentImageHeight - ImGui::GetStyle().ItemSpacing.y;
+    float optionsHeight = upperContentHeight - ImGui::GetStyle().ItemSpacing.y + currentImageHeight;
     ImGui::BeginGroup(); // ★ここから左側のセット
     {
-        if (ImGui::BeginChild("ImageArea", ImVec2(leftPaneWidth, imageAreaHeight), true))
+        if (ImGui::BeginChild("ImageArea", ImVec2(currentImageWidth, currentImageHeight), true))
         {
             ImGui::SetWindowFontScale(scale); // スケール再適用
 
@@ -406,9 +412,29 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
             }
         }
         ImGui::EndChild();
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(currentImageWidth, 0));
+        ImGui::Button("##splitter", ImVec2(currentImageWidth, 8.0f * scale));
+
+        // マウスが重なったらカーソル変更
+        if (ImGui::IsItemHovered())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+
+        // ドラッグ処理
+        if (ImGui::IsItemActive())
+        {
+            float deltaRatio = ImGui::GetIO().MouseDelta.y / totalLeftHeight;
+            uImageAreaRatioH += deltaRatio;
+
+            // 最小・最大サイズで制限をかける（これ大事！）
+            if (uImageAreaRatioH < 0.25f)
+                uImageAreaRatioH = 0.25f;
+            if (uImageAreaRatioH > 0.75f)
+                uImageAreaRatioH = 0.75f;
+        }
+        ImGui::PopStyleVar();
 
         // --- 左側: ゲームリスト ---
-        if (ImGui::BeginChild("GameList", ImVec2(leftPaneWidth, upperContentHeight), true))
+        if (ImGui::BeginChild("GameList", ImVec2(currentImageWidth, ImGui::GetContentRegionAvail().y - footerHeight), true))
         {
             ImGui::SetWindowFontScale(scale);
 
@@ -467,6 +493,27 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
     }
     ImGui::EndGroup();
 
+    // 2. ★左右分割スプリッター
+    ImGui::SameLine(0, 0); // 隙間をゼロにして横に並べる
+
+    ImGui::InvisibleButton("##h_splitter", ImVec2(8.0f * scale, optionsHeight));
+    // ImGui::SetWindowFontScale(scale);
+    if (ImGui::IsItemHovered())
+        ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW); // 左右矢印
+
+    if (ImGui::IsItemActive())
+    {
+        float deltaRatio = ImGui::GetIO().MouseDelta.x / totalLeftwidth;
+        uImageAreaRatioW += deltaRatio;
+
+        // 最小・最大サイズで制限をかける（これ大事！）
+        if (uImageAreaRatioW < 0.25f)
+            uImageAreaRatioW = 0.25f;
+        if (uImageAreaRatioW > 0.75f)
+            uImageAreaRatioW = 0.75f;
+    }
+
+     // 3. 右カラムの開始
     ImGui::SameLine();
 
     ImGui::BeginGroup();
@@ -502,7 +549,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     ImGui::Spacing();
 
                     // --- 2列のチェックボックスレイアウト ---
-                    ImGui::Columns(2, "VideoSettingsColumns", false); // 2列作成、境界線なし
+                    ImGui::Columns(3, "VideoSettingsColumns", false); // 2列作成、境界線なし
 
                     // --- 1列目 ---
                     {
@@ -531,10 +578,6 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                             saveSettings = true;
                         }
                         if (ImGui::Checkbox("True-Hz", &vTrueHz))
-                        {
-                            saveSettings = true;
-                        }
-                        if (ImGui::Checkbox("True-AR", &vTrueAR))
                         {
                             saveSettings = true;
                         }
@@ -569,6 +612,21 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                             saveSettings = true;
                         }
                         if (ImGui::Checkbox("NoWhiteFlash", &vNoWhiteFlash))
+                        {
+                            saveSettings = true;
+                        }
+                    }
+                    ImGui::NextColumn();
+                    {
+                        if (ImGui::Checkbox("True-AR", &vTrueAR))
+                        {
+                            saveSettings = true;
+                        }
+                        if (ImGui::Checkbox("OverRay", &vOverlay))
+                        {
+                            saveSettings = true;
+                        }
+                        if (ImGui::Checkbox("HideCMD", &vHideCMD))
                         {
                             saveSettings = true;
                         }
@@ -1188,7 +1246,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
                                 std::string cmd = "\"" + std::string(szExePath) + "\"";
                                 cmd += " -record \"" + newReplayFile + "\"";
-                                //cmd += " \"roms/" + currentRomName + ".zip\"";
+                                // cmd += " \"roms/" + currentRomName + ".zip\"";
                                 cmd += " \"" + s_Dir + "/" + currentRomName + ".zip\"";
 
                                 STARTUPINFOA si = {sizeof(si)};
@@ -1482,9 +1540,9 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
             }
         }
         ImGui::SameLine(0, spacing);
-        //std::string Dir = config["Dir"].ValueAs<std::string>();
-        // --- 追加：ROMパス設定エリア ---
-        // 2. フォルダ選択ボタン
+        // std::string Dir = config["Dir"].ValueAs<std::string>();
+        //  --- 追加：ROMパス設定エリア ---
+        //  2. フォルダ選択ボタン
         if (ImGui::Button("DIR...", ImVec2(80.0f * scale, -1)))
         {
             std::string pickedPath = "";
@@ -1527,7 +1585,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     if (c == '\\')
                         c = '/';
                 }
-                //config.Set("Dir", pickedPath);
+                // config.Set("Dir", pickedPath);
                 s_Dir = pickedPath;
             }
         }
@@ -1552,7 +1610,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
             std::string newPath = std::string(pathBuf);
             // ユーザーが文字を入力した瞬間に config の "Dir" を更新
             std::replace(newPath.begin(), newPath.end(), '\\', '/');
-            //config.Set("Dir", std::string(pathBuf));
+            // config.Set("Dir", std::string(pathBuf));
             s_Dir = newPath;
         }
         // ----------------------------
@@ -1647,6 +1705,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     bool vMultiTexture = config["MultiTexture"].ValueAs<bool>();
     bool vBorderless = config["BorderlessWindow"].ValueAs<bool>();
     bool vTrueAR = config["true-ar"].ValueAs<bool>();
+    bool vOverlay = config["Overlay"].ValueAs<bool>();
     bool vFullScreen = config["FullScreen"].ValueAs<bool>();
     bool vWideScreen = config["WideScreen"].ValueAs<bool>();
     bool vWideBackground = config["WideBackground"].ValueAs<bool>();
@@ -1654,6 +1713,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     bool vShowFrameRate = config["ShowFrameRate"].ValueAs<bool>();
     bool vThrottle = config["Throttle"].ValueAs<bool>();
     bool vNoWhiteFlash = config["NoWhiteFlash"].ValueAs<bool>();
+    bool vHideCMD = config["HideCMD"].ValueAs<bool>();
     float vRefreshRate = config["RefreshRate"].ValueAs<float>();
     bool vTrueHz;
     if (vRefreshRate == 60.0f)
@@ -1710,8 +1770,8 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     {
         int engineSelection;
         bool vVsync, vQuadRendering, vGPUMultiThreaded, vMultiThreaded;
-        bool vMultiTexture, vBorderless, vTrueAR, vFullScreen, vWideScreen;
-        bool vWideBackground, vStretch, vShowFrameRate, vThrottle, vNoWhiteFlash, vTrueHz;
+        bool vMultiTexture, vBorderless, vTrueAR, vOverlay, vFullScreen, vWideScreen;
+        bool vWideBackground, vStretch, vShowFrameRate, vThrottle, vNoWhiteFlash, vHideCMD, vTrueHz;
         int superSampling, selectedCRT, selectedUpscale, ppcFreq;
         int WindowXPosition, WindowYPosition, Scanline, Barrel;
         int musicVol, sfxVol, balance;
@@ -1719,7 +1779,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         int selectedInputType, selectedCrosshair, selectedStyle;
         bool vForceFeedback, vNetwork, vSimulateNet;
         char bufPortIn[16], bufPortOut[16], bufAddressOut[128];
-        int selectedResIndex; // これもここに入れる
+        int selectedResIndex;
     };
 
     SDL_Window *window = SDL_CreateWindow("Supermodel-PonMi-Edition", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1024, 600, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_HIDDEN);
@@ -1766,6 +1826,14 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
                 else if (key == "FontSize")
                 {
                     fontSize = std::stof(val);
+                }
+                 else if (key == "ImageAreaRatioW")
+                {
+                    uImageAreaRatioW = std::stof(val);
+                }
+                else if (key == "ImageAreaRatioH")
+                {
+                    uImageAreaRatioH = std::stof(val);
                 }
             }
         }
@@ -1859,9 +1927,9 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         // GUI(io, config, games, selectedGame, exit, exitLaunch, saveSettings, window,selectedResIndex);
         GUI(io, config, games, selectedGame, exit, exitLaunch, saveSettings, window,
             selectedResIndex, engineSelection, vVsync, vQuadRendering, vGPUMultiThreaded,
-            vMultiThreaded, vMultiTexture, vBorderless, vTrueAR, vFullScreen,
+            vMultiThreaded, vMultiTexture, vBorderless, vTrueAR, vOverlay, vFullScreen,
             vWideScreen, vWideBackground, vStretch, vShowFrameRate, vThrottle,
-            vNoWhiteFlash, vTrueHz, superSampling, selectedCRT, selectedUpscale, ppcFreq, WindowXPosition, WindowYPosition, Scanline, Barrel,
+            vNoWhiteFlash, vHideCMD, vTrueHz, superSampling, selectedCRT, selectedUpscale, ppcFreq, WindowXPosition, WindowYPosition, Scanline, Barrel,
             musicVol, sfxVol, balance, vEmulateSound, vEmulateDSB, vFlipStereo,
             vLegacySoundDSP, selectedInputType, selectedCrosshair, selectedStyle,
             vForceFeedback, vNetwork, vSimulateNet, bufPortIn, bufPortOut, bufAddressOut);
@@ -1920,7 +1988,9 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         u["ShowFrameRate"] = (vShowFrameRate ? "1" : "0");
         u["Throttle"] = (vThrottle ? "1" : "0");
         u["NoWhiteFlash"] = (vNoWhiteFlash ? "1" : "0");
+        u["HideCMD"] = (vHideCMD ? "1" : "0");
         u["true-ar"] = (vTrueAR ? "1" : "0");
+        u["Overlay"] = (vOverlay ? "1" : "0");
 
         // リフレッシュレート（精度指定が必要なため stringstream を使用）
         std::stringstream ss;
@@ -1998,6 +2068,8 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
             ofs << "SelectedGameIdx=" << selectedGame << "\n";
             ofs << "Maximized=" << isMaximized << "\n";
             ofs << "FontSize=" << fontSize << "\n";
+            ofs << "ImageAreaRatioW=" << uImageAreaRatioW << "\n";
+            ofs << "ImageAreaRatioH=" << uImageAreaRatioH << "\n";
             // 今後、他にも保存したいものがあればここに追記できる
             ofs.close();
             saveSettings = false;

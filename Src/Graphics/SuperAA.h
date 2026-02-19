@@ -13,7 +13,7 @@
 class SuperAA
 {
 public:
-	SuperAA(int aaValue, CRTcolor CRTcolors , int scanlineStrength , int totalXRes ,int totalYRes , int barrelStrength, const char* gameTitle, bool wideScreen);
+	SuperAA(int aaValue, CRTcolor CRTcolors , int scanlineStrength , int totalXRes ,int totalYRes , int barrelStrength, const char* gameTitle, bool wideScreen, bool overlay);
 	~SuperAA();
 
 	void Init(int width, int height);		// width & height are real window dimensions
@@ -47,4 +47,5 @@ private:
 	int m_height;
 	GLuint m_overlayTex = 0;
 	bool m_wideScreen;
+	bool m_overlay;
 };

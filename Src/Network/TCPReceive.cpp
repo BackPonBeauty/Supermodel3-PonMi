@@ -162,6 +162,7 @@ std::vector<char> &TCPReceive::Receive()
     {
         // 圧縮されていない場合：tempからrecへコピー（または直接recで受けても良いですが、安全策で）
         m_recBuffer.assign(m_tempBuffer.begin(), m_tempBuffer.begin() + compressed_size);
+        memcpy(last_packet, m_recBuffer.data(), original_size);
     }
 
     return m_recBuffer;

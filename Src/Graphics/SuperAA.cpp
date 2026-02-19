@@ -4,7 +4,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen) : m_aa(aaValue),
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay) : m_aa(aaValue),
                                                                                                                                                                      m_crtcolors(CRTcolors),
                                                                                                                                                                      m_scanlineEnable(false),
                                                                                                                                                                      m_scanlineStrength(1 - (scanlineStrength / 100.0f)),
@@ -15,7 +15,8 @@ SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int tota
                                                                                                                                                                      m_vao(0),
                                                                                                                                                                      m_width(0),
                                                                                                                                                                      m_height(0),
-                                                                                                                                                                     m_wideScreen(wideScreen)
+                                                                                                                                                                     m_wideScreen(wideScreen),
+                                                                                                                                                                     m_overlay(overlay)
 {
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
@@ -305,7 +306,7 @@ void SuperAA::Draw()
 
     // --- 2. オーバーレイの描画 ---
     // AAの設定（m_aa > 1等）に関わらず、テクスチャがあれば必ず実行するよう外に出しました。//m_overlayTex != 0
-    if (m_overlayTex != 0 && m_wideScreen)
+    if (m_overlayTex != 0 && m_wideScreen && m_overlay)
     {
         // 現在のViewport（ゲーム画面用の4:3など）を一時保存
         GLint last_viewport[4];

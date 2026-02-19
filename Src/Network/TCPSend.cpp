@@ -157,7 +157,7 @@ void TCPSend::analyze_packet_diff(unsigned char *current_packet, int length)
     double match_rate = (double)match_count / length * 100.0;
 
     // 100フレームに1回、または変化が激しい時だけログに出すなどの調整を
-    printf("Packet Diff: %d/%d bytes matched (%.2f%%)\n", match_count, length, match_rate);
+    //printf("Packet Diff: %d/%d bytes matched (%.2f%%)\n", match_count, length, match_rate);
 
     // 次回のために保存
     memcpy(last_packet, current_packet, length);

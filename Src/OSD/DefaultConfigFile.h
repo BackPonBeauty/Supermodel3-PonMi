@@ -98,6 +98,7 @@ static const char s_defaultConfigFileContents[] =
         "BarrelStrength = 0.02\n"
         "Title = \"Supermodel\"\n"
         "true-ar = false\n"
+        "Overlay = false\n"
         "\n"
         "Dir = \"C:/SuperP/bin64/ROMs\"\n"
         "HideCMD = false\n"
