@@ -188,7 +188,7 @@ void C3DRAM::Reset()
 {
     m_shiftRegSize = 1;
     m_shiftReg = 0;
-    m_instructionReg = 15;  // BYPASS
+    m_instructionReg = 15;  // BYPASS             
 }
 
 // Finite state machine. Each state has two possible next states.

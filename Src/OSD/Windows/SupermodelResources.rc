@@ -6,8 +6,8 @@
 1 24 "SupermodelManifest.xml"
 
 1 VERSIONINFO
-FILEVERSION 2026,2,6,0
-PRODUCTVERSION 2026,2,6,0
+FILEVERSION 2026,2,23,0
+PRODUCTVERSION 2026,2,23,0
 FILEOS 0x4L
 FILETYPE 0x1L
 BEGIN
@@ -17,11 +17,11 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "BackPonBeauty"
             VALUE "FileDescription",  "Supermodel-PonMi"
-            VALUE "FileVersion",      "20260206"
+            VALUE "FileVersion",      "20260223"
             VALUE "InternalName",     "Supermodel-PonMi"
             VALUE "LegalCopyright",   "Copyright (C) 2026 BackPonBeauty(背中ポン美)"
             VALUE "ProductName",      "Supermodel-PonMi"
-            VALUE "ProductVersion",   "20260206"
+            VALUE "ProductVersion",   "20260223"
         END
     END
     BLOCK "VarFileInfo"

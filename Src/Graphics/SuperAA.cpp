@@ -4,9 +4,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay) : m_aa(aaValue),
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay) : m_aa(aaValue),
                                                                                                                                                                      m_crtcolors(CRTcolors),
-                                                                                                                                                                     m_scanlineEnable(false),
+                                                                                                                                                                     m_scanlineEnable(scanLine),
                                                                                                                                                                      m_scanlineStrength(1 - (scanlineStrength / 100.0f)),
                                                                                                                                                                      m_barrelEffectEnable(true),
                                                                                                                                                                      m_barrelStrength(ubarrelStrength / 100.0f),

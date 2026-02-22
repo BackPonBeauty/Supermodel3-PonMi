@@ -99,6 +99,7 @@ static const char s_defaultConfigFileContents[] =
         "Title = \"Supermodel\"\n"
         "true-ar = false\n"
         "Overlay = false\n"
+        "DefaultScanline = true\n"
         "\n"
         "Dir = \"C:/SuperP/bin64/ROMs\"\n"
         "HideCMD = false\n"

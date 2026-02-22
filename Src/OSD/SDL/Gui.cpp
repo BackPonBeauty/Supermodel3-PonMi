@@ -281,7 +281,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
          bool &vGPUMultiThreaded, bool &vMultiThreaded, bool &vMultiTexture,
          bool &vBorderless, bool &vTrueAR, bool &vOverlay, bool &vFullScreen, bool &vWideScreen,
          bool &vWideBackground, bool &vStretch, bool &vShowFrameRate, bool &vThrottle,
-         bool &vNoWhiteFlash, bool &vHideCMD, bool &vTrueHz, int &superSampling, int &selectedCRT, int &selectedUpscale,
+         bool &vNoWhiteFlash, bool &vHideCMD, bool &vDefaultScanline, bool &vTrueHz, int &superSampling, int &selectedCRT, int &selectedUpscale,
          int &ppcFreq, int &WindowXPosition, int &WindowYPosition, int &Scanline, int &Barrel,
          int &musicVol, int &sfxVol, int &balance, bool &vEmulateSound,
          bool &vEmulateDSB, bool &vFlipStereo, bool &vLegacySoundDSP,
@@ -333,7 +333,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
     // ウィンドウ全体の基本スケール
     ImGui::SetWindowFontScale(scale);
-    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-02-19)");
+    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-02-23)");
     ImGui::Separator();
     // float headerBottomY = ImGui::GetCursorPosY();
 
@@ -622,11 +622,15 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                         {
                             saveSettings = true;
                         }
-                        if (ImGui::Checkbox("OverRay", &vOverlay))
+                        if (ImGui::Checkbox("Overlay", &vOverlay))
                         {
                             saveSettings = true;
                         }
                         if (ImGui::Checkbox("HideCMD", &vHideCMD))
+                        {
+                            saveSettings = true;
+                        }
+                        if (ImGui::Checkbox("DefaultScanline", &vDefaultScanline))
                         {
                             saveSettings = true;
                         }
@@ -1714,6 +1718,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     bool vThrottle = config["Throttle"].ValueAs<bool>();
     bool vNoWhiteFlash = config["NoWhiteFlash"].ValueAs<bool>();
     bool vHideCMD = config["HideCMD"].ValueAs<bool>();
+    bool vDefaultScanline = config["DefaultScanline"].ValueAs<bool>();
     float vRefreshRate = config["RefreshRate"].ValueAs<float>();
     bool vTrueHz;
     if (vRefreshRate == 60.0f)
@@ -1771,7 +1776,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         int engineSelection;
         bool vVsync, vQuadRendering, vGPUMultiThreaded, vMultiThreaded;
         bool vMultiTexture, vBorderless, vTrueAR, vOverlay, vFullScreen, vWideScreen;
-        bool vWideBackground, vStretch, vShowFrameRate, vThrottle, vNoWhiteFlash, vHideCMD, vTrueHz;
+        bool vWideBackground, vStretch, vShowFrameRate, vThrottle, vNoWhiteFlash, vHideCMD, vDefaultScanline, vTrueHz;
         int superSampling, selectedCRT, selectedUpscale, ppcFreq;
         int WindowXPosition, WindowYPosition, Scanline, Barrel;
         int musicVol, sfxVol, balance;
@@ -1929,7 +1934,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
             selectedResIndex, engineSelection, vVsync, vQuadRendering, vGPUMultiThreaded,
             vMultiThreaded, vMultiTexture, vBorderless, vTrueAR, vOverlay, vFullScreen,
             vWideScreen, vWideBackground, vStretch, vShowFrameRate, vThrottle,
-            vNoWhiteFlash, vHideCMD, vTrueHz, superSampling, selectedCRT, selectedUpscale, ppcFreq, WindowXPosition, WindowYPosition, Scanline, Barrel,
+            vNoWhiteFlash, vHideCMD, vDefaultScanline, vTrueHz, superSampling, selectedCRT, selectedUpscale, ppcFreq, WindowXPosition, WindowYPosition, Scanline, Barrel,
             musicVol, sfxVol, balance, vEmulateSound, vEmulateDSB, vFlipStereo,
             vLegacySoundDSP, selectedInputType, selectedCrosshair, selectedStyle,
             vForceFeedback, vNetwork, vSimulateNet, bufPortIn, bufPortOut, bufAddressOut);
@@ -1989,6 +1994,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         u["Throttle"] = (vThrottle ? "1" : "0");
         u["NoWhiteFlash"] = (vNoWhiteFlash ? "1" : "0");
         u["HideCMD"] = (vHideCMD ? "1" : "0");
+        u["DefaultScanline"] = (vDefaultScanline ? "1" : "0");
         u["true-ar"] = (vTrueAR ? "1" : "0");
         u["Overlay"] = (vOverlay ? "1" : "0");
 

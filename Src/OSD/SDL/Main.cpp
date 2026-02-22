@@ -1107,7 +1107,8 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   BarrelStrength = s_runtime_config["BarrelStrength"].ValueAs<int>();
   bool m_wideScreen = s_runtime_config["WideScreen"].ValueAs<bool>();
   bool m_Overlay = s_runtime_config["Overlay"].ValueAs<bool>();
-  SuperAA *superAA = new SuperAA(aaValue, CRTcolors, scanlineStrength, totalXRes, totalYRes, BarrelStrength, game.title.c_str(), m_wideScreen, m_Overlay);
+  bool m_scanLine = s_runtime_config["DefaultScanline"].ValueAs<bool>();
+  SuperAA *superAA = new SuperAA(aaValue, CRTcolors, m_scanLine, scanlineStrength, totalXRes, totalYRes, BarrelStrength, game.title.c_str(), m_wideScreen, m_Overlay);
   superAA->Init(totalXRes, totalYRes); // pass actual frame sizes here
   CRender2D *Render2D = new CRender2D(s_runtime_config);
   IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *)new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *)new Legacy3D::CLegacy3D(s_runtime_config));
