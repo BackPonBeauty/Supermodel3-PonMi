@@ -32,8 +32,8 @@
 #include "InputSystem.h"
 
 CInput::CInput(const char *inputId, const char *inputLabel, unsigned inputFlags, unsigned inputGameFlags, const char *defaultMapping, UINT16 initValue) : 
-	id(inputId), label(inputLabel), flags(inputFlags), gameFlags(inputGameFlags), m_defaultMapping(defaultMapping), value(initValue), prevValue(initValue),
-	m_system(NULL), m_source(NULL)
+	m_defaultMapping(defaultMapping), m_system(NULL), m_source(NULL),
+	id(inputId), label(inputLabel), flags(inputFlags), gameFlags(inputGameFlags), value(initValue), prevValue(initValue)
 {
 	ResetToDefaultMapping();
 }
@@ -140,12 +140,11 @@ void CInput::AppendMapping(const char *mapping)
 	// If mapping is empty or NONE, then simply set mapping
 	if (m_mapping[0] == '\0' || stricmp(m_mapping, "NONE") == 0)
 		SetMapping(mapping);
-	else
+		else
 	{
 		// Otherwise, append to mapping string and recreate source from new mapping string
-		size_t size = MAX_MAPPING_LENGTH - strlen(m_mapping);
-		strncat(m_mapping, ",", size--);
-		strncat(m_mapping, mapping, size);
+		size_t currentLen = strlen(m_mapping);
+		snprintf(m_mapping + currentLen, MAX_MAPPING_LENGTH + 1 - currentLen, ",%s", mapping);
 		CreateSource();
 	}
 }

@@ -333,7 +333,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
     // ウィンドウ全体の基本スケール
     ImGui::SetWindowFontScale(scale);
-    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-02-23)");
+    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-03-05)");
     ImGui::Separator();
     // float headerBottomY = ImGui::GetCursorPosY();
 

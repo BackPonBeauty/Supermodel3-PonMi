@@ -5,18 +5,18 @@
 #include "stb_image.h"
 
 SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay) : m_aa(aaValue),
-                                                                                                                                                                     m_crtcolors(CRTcolors),
-                                                                                                                                                                     m_scanlineEnable(scanLine),
-                                                                                                                                                                     m_scanlineStrength(1 - (scanlineStrength / 100.0f)),
-                                                                                                                                                                     m_barrelEffectEnable(true),
-                                                                                                                                                                     m_barrelStrength(ubarrelStrength / 100.0f),
-                                                                                                                                                                     m_totalXRes(totalXRes),
-                                                                                                                                                                     m_totalYRes(totalYRes),
-                                                                                                                                                                     m_vao(0),
-                                                                                                                                                                     m_width(0),
-                                                                                                                                                                     m_height(0),
-                                                                                                                                                                     m_wideScreen(wideScreen),
-                                                                                                                                                                     m_overlay(overlay)
+                                                                                                                                                                                                  m_crtcolors(CRTcolors),
+                                                                                                                                                                                                  m_scanlineEnable(scanLine),
+                                                                                                                                                                                                  m_scanlineStrength(1 - (scanlineStrength / 100.0f)),
+                                                                                                                                                                                                  m_barrelEffectEnable(true),
+                                                                                                                                                                                                  m_barrelStrength(ubarrelStrength / 100.0f),
+                                                                                                                                                                                                  m_totalXRes(totalXRes),
+                                                                                                                                                                                                  m_totalYRes(totalYRes),
+                                                                                                                                                                                                  m_vao(0),
+                                                                                                                                                                                                  m_width(0),
+                                                                                                                                                                                                  m_height(0),
+                                                                                                                                                                                                  m_wideScreen(wideScreen),
+                                                                                                                                                                                                  m_overlay(overlay)
 {
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
@@ -197,17 +197,32 @@ void main()
     color = vec3(sRGB(color.r), sRGB(color.g), sRGB(color.b));
 	
 	
-	    // ===== Scanline =====
-   if (scanlineEnable != 0)
+	// ===== New Scanline (0=黒, 50=透明, 100=白) =====
+    if (scanlineEnable != 0)
     {
-        float distortedY = uv.y * float(uScreenHeight);
+        float distortedY = uv.y * float(uScreenHeight); // 歪みの影響を避けるためvTexCoordを使用
         float pixelsPerLine = max(float(uScreenHeight) / 480.0, 1.0);
         float lineIndex = floor(distortedY / pixelsPerLine);
-        
-        // 偶数行か奇数行か (0.0 or 1.0)
+    
+    // 走査線の隙間（偶数行）か、走査線（奇数行）か
         float mask = mod(lineIndex, 2.0);
+    
+        if (mask < 1.0) // 走査線の隙間（暗くしたい部分）
+        {
+            // SCANLINE_STRENGTH を 0.0〜1.0 の範囲として計算
+            // 0.5 (50) のとき offset = 0.0 (変化なし)
+            // 0.0 (0)  のとき offset = -1.0 (真っ黒)
+            // 1.0 (100) のとき offset = +1.0 (真っ白)
+            float offset = (SCANLINE_STRENGTH * 2.0) - 1.0;
         
-        color *= mix(SCANLINE_STRENGTH, 1.0, mask);
+            if (offset < 0.0) {
+                // 0〜50のとき：黒に近づける（減算）
+                color += color * offset; 
+            } else {
+                // 50〜100のとき：白に近づける（加算）
+                color += (vec3(1.0) - color) * offset; 
+            }
+        }
     }
 	
 

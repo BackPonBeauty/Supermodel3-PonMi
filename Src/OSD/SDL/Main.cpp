@@ -1,7 +1,7 @@
 /**
  ** Supermodel
  ** A Sega Model 3 Arcade Emulator.
- ** Copyright 2003-2025 The Supermodel Team
+ ** Copyright 2003-2026 The Supermodel Team
  **
  ** This file is part of Supermodel.
  **
@@ -252,10 +252,10 @@ void RelaunchHidden(int argc, char **argv)
   }
 }
 
-static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
-{
-  printf("OGLDebug:: 0x%X: %s\n", id, message);
-}
+// static void GLAPIENTRY DebugCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+//{
+//   printf("OGLDebug:: 0x%X: %s\n", id, message);
+// }
 
 // In windows with an nvidia card (sorry not tested anything else) you can customise the resolution.
 // This also allows you to set a totally custom refresh rate. Apparently you can drive most monitors at
@@ -286,7 +286,7 @@ static void SetFullScreenRefreshRate()
         return;
       }
 
-      if (SDL_BITSPERPIXEL(mode.format) >= 24 && mode.w == totalXRes && mode.h == totalYRes)
+      if (SDL_BITSPERPIXEL(mode.format) >= 24 && (unsigned)mode.w == totalXRes && (unsigned)mode.h == totalYRes)
       {
         if (mode.refresh_rate == 57 || mode.refresh_rate == 58)
         {                                                         // nvidia is fairly flexible in what refresh rate windows will show, so we can match either 57 or 58,
@@ -1620,7 +1620,7 @@ static void PrintGameList(const std::string &xml_file, const std::map<std::strin
   {
     const Game &game = v.second;
     printf("    %s", game.name.c_str());
-    for (size_t i = game.name.length(); i < 9; i++) // pad for alignment (no game ID should be more than 9 letters)
+    for (size_t i = game.name.length(); i < 10; i++)  // pad for alignment
       printf(" ");
     if (!game.version.empty())
       printf("       %s (%s)\n", game.title.c_str(), game.version.c_str());
@@ -1739,6 +1739,7 @@ Util::Config::Node DefaultConfig()
   config.Set("SDLConstForceThreshold", 30, "ForceFeedback", 0, 100);
 #endif
   config.Set<std::string>("Outputs", "none", "Misc", "", "", {"none", "win"});
+  config.Set("DumpMemory", false, "Misc");
   config.Set("DumpTextures", false, "Misc");
 
   //
@@ -1964,7 +1965,7 @@ Util::Config::Node DefaultConfig()
 static void Title(void)
 {
   puts("Supermodel: A Sega Model 3 Arcade Emulator (Version " SUPERMODEL_VERSION ")");
-  puts("Copyright 2003-2025 by The Supermodel Team");
+  puts("Copyright 2003-2026 by The Supermodel Team");
 }
 
 static void Help(void)
@@ -2049,6 +2050,7 @@ static void Help(void)
   puts("  -print-inputs           Prints current input configuration");
   puts("");
   puts("Debug Options:");
+  puts("  -dump-memory            Write memory regions to files on exit");
   puts("  -dump-textures          Write textures to bitmap image files on exit");
 #ifdef SUPERMODEL_DEBUGGER
   puts("  -disable-debugger       Completely disable debugger functionality");
@@ -2155,6 +2157,7 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
 #endif
       {"-no-force-feedback", {"ForceFeedback", false}},
       {"-force-feedback", {"ForceFeedback", true}},
+      {"-dump-memory", {"DumpMemory", true}},
       {"-dump-textures", {"DumpTextures", true}},
   };
   for (int i = 1; i < argc; i++)
@@ -2434,16 +2437,16 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
  * Program entry point.
  */
 int main(int argc, char **argv)
-{/*
-#ifdef _WIN32
+{ /*
+ #ifdef _WIN32
 
-  if (s_runtime_config["HideCMD"].ValueAs<bool>() == true)
-  {
-    RelaunchHidden(argc, argv);
-  }
+   if (s_runtime_config["HideCMD"].ValueAs<bool>() == true)
+   {
+     RelaunchHidden(argc, argv);
+   }
 
-#endif
-*/
+ #endif
+ */
   atexit(ReplayRecorder::Stop);
 
   Title();
@@ -2470,7 +2473,7 @@ int main(int argc, char **argv)
   {
 
     Util::Config::Node fConfig1("Global");
-   
+
     Util::Config::Node fConfig2("Global");
 
     // load up what settings we have so far
@@ -2481,7 +2484,7 @@ int main(int argc, char **argv)
 
     Util::Config::MergeINISections(&fConfig2, DefaultConfig(), fConfig1); // apply .ini file's global section over defaults
 
-     if (fConfig2["HideCMD"].ValueAs<bool>())
+    if (fConfig2["HideCMD"].ValueAs<bool>())
     {
       RelaunchHidden(argc, argv);
     }
