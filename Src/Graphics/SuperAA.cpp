@@ -4,19 +4,21 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay) : m_aa(aaValue),
+SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay, const char *configFilePath) : m_aa(aaValue),
                                                                                                                                                                                                   m_crtcolors(CRTcolors),
                                                                                                                                                                                                   m_scanlineEnable(scanLine),
-                                                                                                                                                                                                  m_scanlineStrength(1 - (scanlineStrength / 100.0f)),
+                                                                                                                                                                                                  m_scanlineStrength(scanlineStrength / 100.0f),
                                                                                                                                                                                                   m_barrelEffectEnable(true),
-                                                                                                                                                                                                  m_barrelStrength(ubarrelStrength / 100.0f),
+                                                                                                                                                                                                  m_barrelStrength(ubarrelStrength / 1000.0f),
                                                                                                                                                                                                   m_totalXRes(totalXRes),
                                                                                                                                                                                                   m_totalYRes(totalYRes),
                                                                                                                                                                                                   m_vao(0),
                                                                                                                                                                                                   m_width(0),
                                                                                                                                                                                                   m_height(0),
                                                                                                                                                                                                   m_wideScreen(wideScreen),
-                                                                                                                                                                                                  m_overlay(overlay)
+                                                                                                                                                                                                  m_overlay(overlay),
+                                                                                                                                                                                                  m_configFilePath(configFilePath)
+                                                                                                                                                                                                
 {
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
@@ -76,27 +78,21 @@ void main(void)
         uhString += std::to_string(m_totalYRes);
         uhString += ";\n";
 
-        std::string scString = "const float SCANLINE_STRENGTH = ";
-        scString += std::to_string(m_scanlineStrength);
-        scString += ";\n";
-
-        std::string bsString = "const float BARREL_STRENGTH = ";
-        bsString += std::to_string(m_barrelStrength);
-        bsString += ";\n";
-        // =========================
-        // Fragment Shader body
-        // =========================
+        //  =========================
+        //  Fragment Shader body
+        //  =========================
         static const std::string fragmentShaderBody = R"glsl(
-in vec2 vTexCoord; // 頂点シェーダーから受け取る
+in vec2 vTexCoord;
 uniform sampler2D tex1;
-uniform int scanlineEnable;
-uniform float scanlineStrength; // 定数ではなくUniformを使用
+uniform float scanlineStrength;
+uniform float barrelStrength;
 uniform int barrelEffectEnable;
-uniform float uAspect;          // width / height
-uniform float BarrelStrength;  // 0.0 = OFF
+uniform int scanlineEnable;
+uniform float uAspect;
+
 out vec4 fragColor;
 
-const float SCANLINE_COUNT = 480.0; // 必要に応じて uScreenHeight / 2.0 などに
+const float SCANLINE_COUNT = 480.0;
 
 // ===== CRT gamma =====
 #if (CRTCOLORS == 0)
@@ -165,83 +161,74 @@ void main()
 {
     vec2 uv = vTexCoord;
 	
-	//float strength = 0.01; // かなり強い歪み
-    float aspect = 1.33;  // アスペクト比も仮固定 (4:3)
-    if (uAspect > 0.0) aspect = uAspect; // もしC++から来ていれば使う
+    float aspect = 1.33;
+    if (uAspect > 0.0) aspect = uAspect;
 
     // ===== 歪み計算 =====
-    vec2 c = uv * 2.0 - 1.0; // [0,1] -> [-1,1]
-    c.x *= aspect;           // アスペクト比考慮
+    vec2 c = uv * 2.0 - 1.0;
+    c.x *= aspect;
 
-    float r2 = dot(c, c);    // 中心からの距離の2乗
-    c *= (1.0 + BARREL_STRENGTH * r2); // 歪ませる
+    if (barrelEffectEnable != 0)
+    {
+        float r2 = dot(c, c);
+        c *= (1.0 + barrelStrength * 1.0 * r2);
+    }
 
-    c.x /= aspect;           // アスペクト比戻す
-    uv = (c + 1.0) * 0.5;    // [-1,1] -> [0,1]
+    c.x /= aspect;
+    uv = (c + 1.0) * 0.5;
 
-    // ===== デバッグ：範囲外を赤くする =====
-    // これで「赤い枠」が見えれば、歪み計算は成功しています。
+    // ===== 範囲外チェック =====
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        fragColor = vec4(0.0, 0.0, 0.0, 1.0); // 赤
+        fragColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
 
     // ===== Fetch =====
-
     vec3 color = texture(tex1, uv).rgb;
 	
-	
-    // (色補正処理...)
+    // ===== 色補正処理 =====
     color = pow(color, vec3(cgamma));
     color *= colmatrix;
     color = vec3(sRGB(color.r), sRGB(color.g), sRGB(color.b));
 	
-	
-	// ===== New Scanline (0=黒, 50=透明, 100=白) =====
+    // ===== Scanline =====
     if (scanlineEnable != 0)
     {
-        float distortedY = uv.y * float(uScreenHeight); // 歪みの影響を避けるためvTexCoordを使用
+        float distortedY = uv.y * float(uScreenHeight);
         float pixelsPerLine = max(float(uScreenHeight) / 480.0, 1.0);
         float lineIndex = floor(distortedY / pixelsPerLine);
-    
-    // 走査線の隙間（偶数行）か、走査線（奇数行）か
-        float mask = mod(lineIndex, 2.0);
-    
-        if (mask < 1.0) // 走査線の隙間（暗くしたい部分）
-        {
-            // SCANLINE_STRENGTH を 0.0〜1.0 の範囲として計算
-            // 0.5 (50) のとき offset = 0.0 (変化なし)
-            // 0.0 (0)  のとき offset = -1.0 (真っ黒)
-            // 1.0 (100) のとき offset = +1.0 (真っ白)
-            float offset = (SCANLINE_STRENGTH * 2.0) - 1.0;
         
-            if (offset < 0.0) {
-                // 0〜50のとき：黒に近づける（減算）
-                color += color * offset; 
-            } else {
-                // 50〜100のとき：白に近づける（加算）
-                color += (vec3(1.0) - color) * offset; 
-            }
-        }
+        float mask = mod(lineIndex, 2.0);
+        
+        color *= mix(1.0 - scanlineStrength, 1.0, mask);
     }
-	
 
     fragColor = vec4(color, 1.0);
 }
 )glsl";
 
-        std::string fs = fragmentShaderVersion + aaString + ccString + uhString + scString + bsString + fragmentShaderBody;
+        std::string fs = fragmentShaderVersion + aaString + ccString + uhString + fragmentShaderBody;
 
         // =========================
         // Shader load
         // =========================
         m_shader.LoadShaders(vertexShader, fs.c_str());
-        m_shader.GetUniformLocationMap("tex1");
-        m_shader.GetUniformLocationMap("barrelEffectEnable");
-        m_shader.GetUniformLocationMap("BarrelStrength");
-        m_shader.GetUniformLocationMap("scanlineEnable");
-        m_shader.GetUniformLocationMap("scanlineStrength");
-        m_shader.GetUniformLocationMap("uAspect");
+        
+        // GetUniformLocation() を直接使用してメンバ変数に保存
+        m_locScanlineEnable = m_shader.GetUniformLocation("scanlineEnable");
+        m_locScanlineStrength = m_shader.GetUniformLocation("scanlineStrength");
+        m_locBarrelEffectEnable = m_shader.GetUniformLocation("barrelEffectEnable");
+        m_locBarrelStrength = m_shader.GetUniformLocation("barrelStrength");
+        m_locTex1 = m_shader.GetUniformLocation("tex1");
+        m_locUAspect = m_shader.GetUniformLocation("uAspect");
+        
+        printf("[SuperAA] Uniform locations:\n");
+        printf("  tex1: %d\n", m_locTex1);
+        printf("  scanlineStrength: %d\n", m_locScanlineStrength);
+        printf("  barrelStrength: %d\n", m_locBarrelStrength);
+        printf("  barrelEffectEnable: %d\n", m_locBarrelEffectEnable);
+        printf("  scanlineEnable: %d\n", m_locScanlineEnable);
+        printf("  uAspect: %d\n", m_locUAspect);
         m_overlayShader.LoadShaders(vertexShader, overlayFS);
         m_overlayShader.GetUniformLocationMap("uOverlayTex");
 
@@ -295,7 +282,6 @@ void SuperAA::Init(int width, int height)
 void SuperAA::Draw()
 {
     // --- 1. ポストエフェクト（AA/CRT）の描画 ---
-    // ここでは glViewport をいじりません。Supermodelが設定した比率（4:3 or 16:9）のまま描画させます。
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
         if (m_width > 0 && m_height > 0)
@@ -305,22 +291,46 @@ void SuperAA::Draw()
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, m_fbo.GetTextureID());
 
-            if (m_shader.attribLocMap["tex1"] >= 0)
-                glUniform1i(m_shader.attribLocMap["tex1"], 0);
+            if (m_locTex1 >= 0)
+                glUniform1i(m_locTex1, 0);
+
+            if (m_locScanlineEnable >= 0)
+            {
+                glUniform1i(m_locScanlineEnable, m_scanlineEnable ? 1 : 0);
+                //static int debugCounter = 0;
+                //if ((debugCounter++ % 60) == 0)
+                //    printf("[DEBUG] scanlineEnable sent: %d (location: %d)\n", m_scanlineEnable ? 1 : 0, m_locScanlineEnable);
+            }
+
+            if (m_locScanlineStrength >= 0)
+            {
+                glUniform1f(m_locScanlineStrength, m_scanlineStrength);
+                //static int debugCounter2 = 0;
+                //if ((debugCounter2++ % 60) == 0)
+                //    printf("[DEBUG] scanlineStrength sent: %.2f (location: %d)\n", m_scanlineStrength, m_locScanlineStrength);
+            }
+
+            // barrelEffect 関連を送信
+            if (m_locBarrelEffectEnable >= 0)
+                glUniform1i(m_locBarrelEffectEnable, m_barrelEffectEnable ? 1 : 0);
+
+            // barrelStrength を送信（動的な値を反映）
+            if (m_locBarrelStrength >= 0)
+                glUniform1f(m_locBarrelStrength, m_barrelStrength);
+
+            // uAspect も送信
+            if (m_locUAspect >= 0)
+                glUniform1f(m_locUAspect, (float)m_width / (float)m_height);
+
+            glBindVertexArray(m_vao);
+            glViewport(0, 0, m_width, m_height);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            glBindVertexArray(0);
+            m_shader.DisableShader();
         }
     }
-    if (m_shader.attribLocMap["scanlineEnable"] >= 0)
-        glUniform1i(m_shader.attribLocMap["scanlineEnable"], m_scanlineEnable ? 1 : 0);
-    // 【重要】比率は頂点シェーダーの vertices[]（-1.0〜1.0）が Viewport にフィットします。
-    // Supermodelが4:3のViewportを設定していれば、そこに4:3で収まります。
-    glBindVertexArray(m_vao);
-    glViewport(0, 0, m_width, m_height);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
-    m_shader.DisableShader();
 
     // --- 2. オーバーレイの描画 ---
-    // AAの設定（m_aa > 1等）に関わらず、テクスチャがあれば必ず実行するよう外に出しました。//m_overlayTex != 0
     if (m_overlayTex != 0 && m_wideScreen && m_overlay)
     {
         // 現在のViewport（ゲーム画面用の4:3など）を一時保存
@@ -338,9 +348,9 @@ void SuperAA::Draw()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, m_overlayTex);
 
-        if (m_overlayShader.attribLocMap["uOverlayTex"] >= 0)
+        if (m_overlayShader.uniformLocMap["uOverlayTex"] >= 0)
         {
-            glUniform1i(m_overlayShader.attribLocMap["uOverlayTex"], 0);
+            glUniform1i(m_overlayShader.uniformLocMap["uOverlayTex"], 0);
         }
 
         glBindVertexArray(m_vao);
@@ -362,30 +372,124 @@ void SuperAA::ToggleScanline()
     m_scanlineEnable = !m_scanlineEnable;
     printf("[SuperAA] Scanline %s\n", m_scanlineEnable ? "ON" : "OFF");
 }
+
 void SuperAA::ToggleBarrelEffect()
 {
-    // m_barrelEffectEnable = !m_barrelEffectEnable;
-    // printf("[SuperAA] barrelEffect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
+    m_barrelEffectEnable = !m_barrelEffectEnable;
+    printf("[SuperAA] Barrel Effect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
 }
 
-// float SuperAA::BarrelStrength()
-//{
-//	m_barrelStrength = ubarrelStrength;
-// }
-/*
-void SuperAA::SetScanlineEnable(bool enable)
+void SuperAA::IncreaseScanlineStrength()
 {
-    //m_scanlineEnable = true;
+    const float STEP = 0.01f; // 5%ずつ変更
+    m_scanlineStrength += STEP;
+    if (m_scanlineStrength > 1.0f)
+        m_scanlineStrength = 1.0f;
+    printf("[SuperAA] Scanline Strength Increased: %.2f\n", m_scanlineStrength );  
+    SaveToINI();  
 }
 
-bool SuperAA::IsScanlineEnabled() const
+void SuperAA::DecreaseScanlineStrength()
 {
-    return m_scanlineEnable;
+    const float STEP = 0.01f;
+    m_scanlineStrength -= STEP;
+    if (m_scanlineStrength < 0.0f)
+        m_scanlineStrength = 0.0f;
+    printf("[SuperAA] Scanline Strength Decreased: %.2f\n", m_scanlineStrength );
+    SaveToINI();
 }
-*/
-// =========================
-// Target FBO
-// =========================
+
+void SuperAA::IncreaseBarrelStrength()
+{
+    const float STEP = 0.001f; // 0.1%ずつ変更
+    m_barrelStrength += STEP;
+    if (m_barrelStrength > 0.100f)
+        m_barrelStrength = 0.100f;
+    printf("[SuperAA] Barrel Strength Decrease: %.3f\n", m_barrelStrength ); 
+    SaveToINI();
+}
+
+void SuperAA::DecreaseBarrelStrength()
+{
+    const float STEP = 0.001f;
+    m_barrelStrength -= STEP;
+    if (m_barrelStrength < 0.000f)
+        m_barrelStrength = 0.000f;
+    printf("[SuperAA] Barrel Strength Increase: %.3f\n", m_barrelStrength );
+    SaveToINI();
+}
+
+// ============================================================================
+// ★ 新規追加：ini ファイル即座保存関数
+// ============================================================================
+void SuperAA::SaveToINI()
+{
+    if (m_configFilePath.empty())
+    {
+        printf("[SuperAA] ERROR: ini file path not set\n");
+        return;
+    }
+ 
+    // 現在の値を 0～100 の形式に変換
+    // ScanlineStrength: 内部は (1 - value) なので逆算
+    int scanlineValue = static_cast<int>(m_scanlineStrength * 100.0f);
+    if (scanlineValue < 0) scanlineValue = 0;
+    if (scanlineValue > 100) scanlineValue = 100;
+ 
+    // BarrelStrength: 内部は value / 100.0f なので 100を掛ける
+    int barrelValue = static_cast<int>(m_barrelStrength * 1000.0f);
+    if (barrelValue < 0) barrelValue = 0;
+    if (barrelValue > 100) barrelValue = 100;
+ 
+    printf("[SuperAA] Saving to ini: ScanlineStrength=%d, BarrelStrength=%d\n", 
+           scanlineValue, barrelValue);
+ 
+    // ini ファイルを読み込む
+    std::ifstream infile(m_configFilePath);
+    if (!infile.is_open())
+    {
+        printf("[SuperAA] ERROR: Cannot open ini file: %s\n", m_configFilePath.c_str());
+        return;
+    }
+ 
+    std::stringstream buffer;
+    std::string line;
+ 
+    // ファイルの内容を処理
+    while (std::getline(infile, line))
+    {
+        // ScanlineStrength を検索・置換
+        if (line.find("ScanlineStrength") != std::string::npos && line.find('=') != std::string::npos)
+        {
+            buffer << "ScanlineStrength = " << scanlineValue << '\n';
+        }
+        // BarrelStrength を検索・置換
+        else if (line.find("BarrelStrength") != std::string::npos && line.find('=') != std::string::npos)
+        {
+            buffer << "BarrelStrength = " << barrelValue << '\n';
+        }
+        else
+        {
+            buffer << line << '\n';
+        }
+    }
+    infile.close();
+ 
+    // ファイルに書き込む
+    std::ofstream outfile(m_configFilePath);
+    if (!outfile.is_open())
+    {
+        printf("[SuperAA] ERROR: Cannot write to ini file: %s\n", m_configFilePath.c_str());
+        return;
+    }
+ 
+    outfile << buffer.str();
+    outfile.close();
+ 
+    printf("[SuperAA] ini file updated successfully\n");
+}
+ 
+
 GLuint SuperAA::GetTargetID()
 {
     return m_fbo.GetFBOID();

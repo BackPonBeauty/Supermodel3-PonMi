@@ -66,8 +66,14 @@ CInputs::CInputs(std::shared_ptr<CInputSystem> system)
 	// the config file.
 
 	// UI Controls
-	uiToggleScanline = AddSwitchInput("UIScanline", "Toggle Scanline", Game::INPUT_UI, "KEY_F4");
-	uiBarrelEffect = AddSwitchInput("UIBarrelEffect", "BarrelEffect", Game::INPUT_UI, "KEY_F3");
+	uiToggleScanline = AddSwitchInput("UIScanline", "ToggleScanline", Game::INPUT_COMMON, "KEY_A");
+	uiScanlineIncrease = AddSwitchInput("UIScanlineIncrease", "IncreaseScanline", Game::INPUT_COMMON, "KEY_O");
+	uiScanlineDecrease = AddSwitchInput("UIScanlineDecrease", "DecreaseScanline", Game::INPUT_COMMON, "KEY_P");
+
+	uiBarrelEffect = AddSwitchInput("UIBarrelEffect", "BarrelEffect", Game::INPUT_COMMON, "KEY_S");
+	uiBarrelIncrease = AddSwitchInput("UIBarrelIncrease", "IncreaseBarrel", Game::INPUT_COMMON, "KEY_K");
+	uiBarrelDecrease = AddSwitchInput("UIBarrelDecrease", "DecreaseBarrel", Game::INPUT_COMMON, "KEY_L");
+
 	uiExit = AddSwitchInput("UIExit", "Exit UI", Game::INPUT_UI, "KEY_ESCAPE");
 	uiReset = AddSwitchInput("UIReset", "Reset", Game::INPUT_UI, "KEY_ALT+KEY_R");
 	uiPause = AddSwitchInput("UIPause", "Pause", Game::INPUT_COMMON, "KEY_ALT+KEY_P");

@@ -333,7 +333,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
     // ウィンドウ全体の基本スケール
     ImGui::SetWindowFontScale(scale);
-    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-03-05)");
+    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-04-12)");
     ImGui::Separator();
     // float headerBottomY = ImGui::GetCursorPosY();
 
@@ -836,7 +836,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     ImGui::Text("Barrel Strength");
                     ImGui::SameLine(150.0f * scale);
                     ImGui::PushItemWidth(-1);
-                    if (ImGui::SliderInt("##Barrel", &Barrel, 0, 10))
+                    if (ImGui::SliderInt("##Barrel", &Barrel, 0, 100))
                     {
                         // config.Set("PowerPCFrequency", (int64_t)ppcFreq); // 必要に応じてconfigへ
                         saveSettings = true;

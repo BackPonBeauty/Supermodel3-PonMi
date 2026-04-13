@@ -108,7 +108,7 @@
 #include <cstdlib>
 #include <chrono>
 #include <ctime>
-#include <windows.h>
+// #include <windows.h>
 #include <shellapi.h>
 
 /******************************************************************************
@@ -1108,7 +1108,7 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
   bool m_wideScreen = s_runtime_config["WideScreen"].ValueAs<bool>();
   bool m_Overlay = s_runtime_config["Overlay"].ValueAs<bool>();
   bool m_scanLine = s_runtime_config["DefaultScanline"].ValueAs<bool>();
-  SuperAA *superAA = new SuperAA(aaValue, CRTcolors, m_scanLine, scanlineStrength, totalXRes, totalYRes, BarrelStrength, game.title.c_str(), m_wideScreen, m_Overlay);
+  SuperAA *superAA = new SuperAA(aaValue, CRTcolors, m_scanLine, scanlineStrength, totalXRes, totalYRes, BarrelStrength, game.title.c_str(), m_wideScreen, m_Overlay, s_configFilePath.c_str());
   superAA->Init(totalXRes, totalYRes); // pass actual frame sizes here
   CRender2D *Render2D = new CRender2D(s_runtime_config);
   IRender3D *Render3D = s_runtime_config["New3DEngine"].ValueAs<bool>() ? ((IRender3D *)new New3D::CNew3D(s_runtime_config, Model3->GetGame().name)) : ((IRender3D *)new Legacy3D::CLegacy3D(s_runtime_config));
@@ -1209,9 +1209,25 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       {
         superAA->ToggleScanline();
       }
+      else if (Inputs->uiScanlineIncrease->Pressed())
+      {
+        superAA->IncreaseScanlineStrength();
+      }
+      else if (Inputs->uiScanlineDecrease->Pressed())
+      {
+        superAA->DecreaseScanlineStrength();
+      }
       else if (Inputs->uiBarrelEffect->Pressed())
       {
         superAA->ToggleBarrelEffect();
+      }
+      else if (Inputs->uiBarrelIncrease->Pressed())
+      {
+        superAA->IncreaseBarrelStrength();
+      }
+      else if (Inputs->uiBarrelDecrease->Pressed())
+      {
+        superAA->DecreaseBarrelStrength();
       }
       else if (Inputs->uiReset->Pressed())
       {
@@ -1620,7 +1636,7 @@ static void PrintGameList(const std::string &xml_file, const std::map<std::strin
   {
     const Game &game = v.second;
     printf("    %s", game.name.c_str());
-    for (size_t i = game.name.length(); i < 10; i++)  // pad for alignment
+    for (size_t i = game.name.length(); i < 10; i++) // pad for alignment
       printf(" ");
     if (!game.version.empty())
       printf("       %s (%s)\n", game.title.c_str(), game.version.c_str());

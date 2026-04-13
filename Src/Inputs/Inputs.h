@@ -6,7 +6,7 @@
  ** This file is part of Supermodel.
  **
  ** Supermodel is free software: you can redistribute it and/or modify it under
- ** the terms of the GNU General Public License as published by the Free 
+ ** the terms of the GNU General Public License as published by the Free
  ** Software Foundation, either version 3 of the License, or (at your option)
  ** any later version.
  **
@@ -24,7 +24,7 @@
  *
  * Header file for CInputs, a class which manages all individual inputs.
  */
- 
+
 #ifndef INCLUDED_INPUTS_H
 #define INCLUDED_INPUTS_H
 
@@ -52,44 +52,48 @@ private:
 
   /*
    * Adds a switch input (eg button) to this collection.
-   */ 
+   */
   std::shared_ptr<CSwitchInput> AddSwitchInput(const char *id, const char *label, unsigned gameFlags, const char *defaultMapping,
-    UINT16 offVal = 0x00, UINT16 onVal = 0x01);
+                                               UINT16 offVal = 0x00, UINT16 onVal = 0x01);
 
   /*
    * Adds an analog input (eg pedal) to this collection.
    */
   std::shared_ptr<CAnalogInput> AddAnalogInput(const char *id, const char *label, unsigned gameFlags, const char *defaultMapping,
-    UINT16 minVal = 0x00, UINT16 maxVal = 0xFF);
+                                               UINT16 minVal = 0x00, UINT16 maxVal = 0xFF);
 
   /*
    * Adds an axis input (eg jostick axis, light gun axis or steering wheel) to this collection.
    */
   std::shared_ptr<CAxisInput> AddAxisInput(const char *id, const char *label, unsigned gameFlags, const char *defaultMapping,
-      std::shared_ptr<CAnalogInput> axisNeg, std::shared_ptr<CAnalogInput> axisPos, UINT16 minVal = 0x00, UINT16 offVal = 0x80, UINT16 maxVal = 0xFF);
+                                           std::shared_ptr<CAnalogInput> axisNeg, std::shared_ptr<CAnalogInput> axisPos, UINT16 minVal = 0x00, UINT16 offVal = 0x80, UINT16 maxVal = 0xFF);
 
   /*
    * Adds a 4-gear shifter input to this collection.
    */
   std::shared_ptr<CGearShift4Input> AddGearShift4Input(const char *id, const char *label, unsigned gameFlags,
-      std::shared_ptr<CSwitchInput> shift1, std::shared_ptr<CSwitchInput> shift2, std::shared_ptr<CSwitchInput> shift3, std::shared_ptr<CSwitchInput> shift4, std::shared_ptr<CSwitchInput> shiftN, std::shared_ptr<CSwitchInput> shiftUp, std::shared_ptr<CSwitchInput> shiftDown);
+                                                       std::shared_ptr<CSwitchInput> shift1, std::shared_ptr<CSwitchInput> shift2, std::shared_ptr<CSwitchInput> shift3, std::shared_ptr<CSwitchInput> shift4, std::shared_ptr<CSwitchInput> shiftN, std::shared_ptr<CSwitchInput> shiftUp, std::shared_ptr<CSwitchInput> shiftDown);
 
   /*
    * Adds a lightgun trigger input to this collection.
    */
   std::shared_ptr<CTriggerInput> AddTriggerInput(const char *id, const char *label, unsigned gameFlags,
-      std::shared_ptr<CSwitchInput> trigger, std::shared_ptr<CSwitchInput> offscreen, UINT16 offVal = 0x00, UINT16 onVal = 0x01);
+                                                 std::shared_ptr<CSwitchInput> trigger, std::shared_ptr<CSwitchInput> offscreen, UINT16 offVal = 0x00, UINT16 onVal = 0x01);
 
   void PrintHeader(const char *fmt, ...);
 
   void PrintConfigureInputsHelp();
 
-
-
 public:
   // UI controls
   std::shared_ptr<CSwitchInput> uiToggleScanline;
+  std::shared_ptr<CSwitchInput> uiScanlineIncrease;
+  std::shared_ptr<CSwitchInput> uiScanlineDecrease;
+
   std::shared_ptr<CSwitchInput> uiBarrelEffect;
+  std::shared_ptr<CSwitchInput> uiBarrelIncrease;
+  std::shared_ptr<CSwitchInput> uiBarrelDecrease;
+
   std::shared_ptr<CSwitchInput> uiExit;
   std::shared_ptr<CSwitchInput> uiReset;
   std::shared_ptr<CSwitchInput> uiPause;
@@ -128,7 +132,7 @@ public:
   std::shared_ptr<CSwitchInput> kick[2];
   std::shared_ptr<CSwitchInput> guard[2];
   std::shared_ptr<CSwitchInput> escape[2];
-  
+
   // Spikeout controls
   std::shared_ptr<CSwitchInput> shift;
   std::shared_ptr<CSwitchInput> beat;
@@ -147,11 +151,11 @@ public:
 
   // VR view buttons: VR1 Red, VR2 Blue, VR3 Yellow, VR4 Green
   std::shared_ptr<CSwitchInput> vr[4];
- 
+
   // Up/down gear shift
   std::shared_ptr<CSwitchInput> gearShiftUp;
   std::shared_ptr<CSwitchInput> gearShiftDown;
-  
+
   // 4-speed gear shift
   std::shared_ptr<CGearShift4Input> gearShift4;
 
@@ -176,8 +180,8 @@ public:
   std::shared_ptr<CSwitchInput> twinJoyShot2;
   std::shared_ptr<CSwitchInput> twinJoyTurbo1;
   std::shared_ptr<CSwitchInput> twinJoyTurbo2;
-  
-  // Twin joysticks (macro mapping, for users w/out dual joysticks) 
+
+  // Twin joysticks (macro mapping, for users w/out dual joysticks)
   std::shared_ptr<CSwitchInput> twinJoyTurnLeft;
   std::shared_ptr<CSwitchInput> twinJoyTurnRight;
   std::shared_ptr<CSwitchInput> twinJoyStrafeLeft;
@@ -186,7 +190,7 @@ public:
   std::shared_ptr<CSwitchInput> twinJoyReverse;
   std::shared_ptr<CSwitchInput> twinJoyJump;
   std::shared_ptr<CSwitchInput> twinJoyCrouch;
-  
+
   // Analog joystick
   std::shared_ptr<CAxisInput> analogJoyX;
   std::shared_ptr<CAxisInput> analogJoyY;
@@ -199,7 +203,7 @@ public:
   std::shared_ptr<CAxisInput> gunX[2];
   std::shared_ptr<CAxisInput> gunY[2];
   std::shared_ptr<CTriggerInput> trigger[2];
-  
+
   // Analog gun controls (players 1 and 2)
   std::shared_ptr<CAxisInput> analogGunX[2];
   std::shared_ptr<CAxisInput> analogGunY[2];
@@ -235,7 +239,7 @@ public:
    * Creates a set of inputs with the given input system.
    */
   CInputs(std::shared_ptr<CInputSystem> system);
-  
+
   /*
    * CInputs destructor.
    */
@@ -263,14 +267,14 @@ public:
 
   /*
    * Initializes the inputs.  Must be called before any other methods are used.
-   */ 
+   */
   bool Initialize();
 
   /*
    * Loads the input mapping assignments from the given config object.
    */
   void LoadFromConfig(const Util::Config::Node &config);
-  
+
   /*
    * Stores the current input mapping assignments to the given config object.
    */
@@ -281,17 +285,17 @@ public:
    * Returns true if the inputs were configured okay or false if the user exited without requesting to save changes.
    */
   bool ConfigureInputs(const Game &game);
-  
+
   /*
    * Configures the current input mapping assignments for the given game, or all inputs if game is NULL, by asking the user for input.
    * Takes display geometry if this has not been set previously by a call to Poll().
    * Returns true if the inputs were configured okay or false if the user exited without requesting to save changes.
    */
   bool ConfigureInputs(const Game &game, unsigned dispX, unsigned dispY, unsigned dispW, unsigned dispH);
-  
+
   bool scanlineToggleRequest = false;
 
-  std::vector<std::shared_ptr<CInput>> GetGameInputs(const Game& game);
+  std::vector<std::shared_ptr<CInput>> GetGameInputs(const Game &game);
 
   void CalibrateJoysticks();
 
@@ -314,4 +318,4 @@ public:
   void DumpState(const Game *game);
 };
 
-#endif  // INCLUDED_INPUTS_H
+#endif // INCLUDED_INPUTS_H

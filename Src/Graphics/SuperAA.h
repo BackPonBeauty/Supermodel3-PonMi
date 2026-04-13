@@ -3,6 +3,9 @@
 #include "Supermodel.h"
 #include "FBO.h"
 #include "New3D/GLSLShader.h"
+#include <fstream>
+#include <sstream>
+#include <string>
 
 // This class just implements super sampling. Super sampling looks fantastic but is quite expensive.
 // 8x and beyond values can start to eat ridiculous amounts of memory / gpu time, for less and less noticable returns
@@ -13,21 +16,40 @@
 class SuperAA
 {
 public:
-	SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength , int totalXRes ,int totalYRes , int barrelStrength, const char* gameTitle, bool wideScreen, bool overlay);
+	SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength, int totalXRes, int totalYRes, int barrelStrength, const char *gameTitle, bool wideScreen, bool overlay, const char *configFilePath);
 	~SuperAA();
 
-	void Init(int width, int height);		// width & height are real window dimensions
-	void Draw();							// this is a no-op if AA is 1 and CRTcolors 0, since we'll be drawing straight on the back buffer anyway
+	void Init(int width, int height); // width & height are real window dimensions
+	void Draw();					  // this is a no-op if AA is 1 and CRTcolors 0, since we'll be drawing straight on the back buffer anyway
 
 	GLuint GetTargetID();
 	GLint m_locScanlineEnable = -1;
 	GLint m_locScanlineStrength = -1;
+	GLint m_locBarrelEffectEnable = -1; // ← 追加
+	GLint m_locBarrelStrength = -1;		// ← 追加
+	GLint m_locTex1 = -1;				// ← 追加
+	GLint m_locUAspect = -1;			// ← 追加
+	
+	// ===== Toggle Methods (on/off) =====
 	void ToggleScanline();
-	float BarrelStrength();
 	void ToggleBarrelEffect();
-    void SetScanlineEnable(bool False);
-    bool IsScanlineEnabled() const;
-	void LoadOverlayByTitle(const std::string& gameTitle);
+
+	// ===== Strength Adjustment Methods =====
+	void IncreaseScanlineStrength();
+	void DecreaseScanlineStrength();
+	void IncreaseBarrelStrength();
+	void DecreaseBarrelStrength();
+
+	// ===== Getter Methods =====
+	float GetScanlineStrength() const;
+	float GetBarrelStrength() const;
+
+	// ===== Legacy Methods =====
+	void SetScanlineEnable(bool enable);
+	bool IsScanlineEnabled() const;
+	float BarrelStrength();
+
+	void LoadOverlayByTitle(const std::string &gameTitle);
 
 private:
 	FBO m_fbo;
@@ -48,4 +70,6 @@ private:
 	GLuint m_overlayTex = 0;
 	bool m_wideScreen;
 	bool m_overlay;
+	std::string m_configFilePath;
+	void SaveToINI();
 };
