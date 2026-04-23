@@ -29,7 +29,7 @@ public:
 	GLint m_locBarrelStrength = -1;		// ← 追加
 	GLint m_locTex1 = -1;				// ← 追加
 	GLint m_locUAspect = -1;			// ← 追加
-	
+
 	// ===== Toggle Methods (on/off) =====
 	void ToggleScanline();
 	void ToggleBarrelEffect();
@@ -50,6 +50,9 @@ public:
 	float BarrelStrength();
 
 	void LoadOverlayByTitle(const std::string &gameTitle);
+	
+	void InitFrameRingBuffer(int width, int height);
+	void UpdateFrameRingBuffer();
 
 private:
 	FBO m_fbo;
@@ -72,4 +75,15 @@ private:
 	bool m_overlay;
 	std::string m_configFilePath;
 	void SaveToINI();
+	// フレーム遅延リングバッファ
+	static const int RING_BUFFER_SIZE = 2;
+	
+	GLuint m_frameRingBuffer[RING_BUFFER_SIZE]; // 57個のテクスチャ
+	int m_ringBufferIndex;						// 現在の書き込みインデックス
+
+	int m_frameCounter;		// フレームカウンタ
+	bool m_mixEnabled;		// mix有効フラグ
+	GLint m_locOldFrameTex; // uOldFrameTex の location
+	GLint m_locMixEnabled;	// uMixEnabled の location
+    
 };

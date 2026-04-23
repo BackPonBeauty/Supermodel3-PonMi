@@ -5,21 +5,32 @@
 #include "stb_image.h"
 
 SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStrength, int totalXRes, int totalYRes, int ubarrelStrength, const char *gameTitle, bool wideScreen, bool overlay, const char *configFilePath) : m_aa(aaValue),
-                                                                                                                                                                                                  m_crtcolors(CRTcolors),
-                                                                                                                                                                                                  m_scanlineEnable(scanLine),
-                                                                                                                                                                                                  m_scanlineStrength(scanlineStrength / 100.0f),
-                                                                                                                                                                                                  m_barrelEffectEnable(true),
-                                                                                                                                                                                                  m_barrelStrength(ubarrelStrength / 1000.0f),
-                                                                                                                                                                                                  m_totalXRes(totalXRes),
-                                                                                                                                                                                                  m_totalYRes(totalYRes),
-                                                                                                                                                                                                  m_vao(0),
-                                                                                                                                                                                                  m_width(0),
-                                                                                                                                                                                                  m_height(0),
-                                                                                                                                                                                                  m_wideScreen(wideScreen),
-                                                                                                                                                                                                  m_overlay(overlay),
-                                                                                                                                                                                                  m_configFilePath(configFilePath)
-                                                                                                                                                                                                
+                                                                                                                                                                                                                              m_crtcolors(CRTcolors),
+                                                                                                                                                                                                                              m_scanlineEnable(scanLine),
+                                                                                                                                                                                                                              m_scanlineStrength(scanlineStrength / 100.0f),
+                                                                                                                                                                                                                              m_barrelEffectEnable(true),
+                                                                                                                                                                                                                              m_barrelStrength(ubarrelStrength / 1000.0f),
+                                                                                                                                                                                                                              m_totalXRes(totalXRes),
+                                                                                                                                                                                                                              m_totalYRes(totalYRes),
+                                                                                                                                                                                                                              m_vao(0),
+                                                                                                                                                                                                                              m_width(0),
+                                                                                                                                                                                                                              m_height(0),
+                                                                                                                                                                                                                              m_wideScreen(wideScreen),
+                                                                                                                                                                                                                              m_overlay(overlay),
+                                                                                                                                                                                                                              m_configFilePath(configFilePath),
+                                                                                                                                                                                                                              m_ringBufferIndex(0),
+                                                                                                                                                                                                                              m_frameCounter(0),
+                                                                                                                                                                                                                              m_mixEnabled(false),
+                                                                                                                                                                                                                              m_locOldFrameTex(-1),
+                                                                                                                                                                                                                              m_locMixEnabled(-1)
+
 {
+    // リングバッファの初期化（テクスチャ生成は Init() で行う）
+    for (int i = 0; i < RING_BUFFER_SIZE; i++)
+    {
+        m_frameRingBuffer[i] = 0;
+    }
+
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
         // =========================
@@ -89,6 +100,8 @@ uniform float barrelStrength;
 uniform int barrelEffectEnable;
 uniform int scanlineEnable;
 uniform float uAspect;
+uniform sampler2D uOldFrameTex;      // ★ 追加
+uniform int uMixEnabled;             // ★ 追加
 
 out vec4 fragColor;
 
@@ -183,8 +196,16 @@ void main()
         return;
     }
 
-    // ===== Fetch =====
+    // ===== Fetch & 25-Frame Delay Interpolation =====
     vec3 color = texture(tex1, uv).rgb;
+    
+    // ★ フレーム遅延 mix
+    if (uMixEnabled != 0)
+    {
+        vec3 oldColor = texture(uOldFrameTex, uv).rgb;  // ★ uOldFrameTex を実際に使う
+        color = mix(oldColor, color, 0.7);
+    }
+
 	
     // ===== 色補正処理 =====
     color = pow(color, vec3(cgamma));
@@ -208,12 +229,20 @@ void main()
 )glsl";
 
         std::string fs = fragmentShaderVersion + aaString + ccString + uhString + fragmentShaderBody;
-
+        // ★ デバッグ：シェーダソースに uOldFrameTex が含まれているか確認
+        if (fs.find("uOldFrameTex") != std::string::npos)
+        {
+            printf("[DEBUG] uOldFrameTex found in shader source\n");
+        }
+        else
+        {
+            printf("[ERROR] uOldFrameTex NOT found in shader source!\n");
+        }
         // =========================
         // Shader load
         // =========================
         m_shader.LoadShaders(vertexShader, fs.c_str());
-        
+
         // GetUniformLocation() を直接使用してメンバ変数に保存
         m_locScanlineEnable = m_shader.GetUniformLocation("scanlineEnable");
         m_locScanlineStrength = m_shader.GetUniformLocation("scanlineStrength");
@@ -222,6 +251,16 @@ void main()
         m_locTex1 = m_shader.GetUniformLocation("tex1");
         m_locUAspect = m_shader.GetUniformLocation("uAspect");
         
+        if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
+        {
+            m_locOldFrameTex = m_shader.GetUniformLocation("uOldFrameTex");
+            m_locMixEnabled = m_shader.GetUniformLocation("uMixEnabled");
+
+            printf("[SuperAA] Frame Delay Interpolation:\n");
+            printf("  uOldFrameTex: %d\n", m_locOldFrameTex);
+            printf("  uMixEnabled: %d\n", m_locMixEnabled);
+        }
+
         printf("[SuperAA] Uniform locations:\n");
         printf("  tex1: %d\n", m_locTex1);
         printf("  scanlineStrength: %d\n", m_locScanlineStrength);
@@ -272,6 +311,9 @@ void SuperAA::Init(int width, int height)
         m_fbo2.Create(width * m_aa, height * m_aa);
         m_width = width;
         m_height = height;
+
+      
+        InitFrameRingBuffer(width, height);
     }
 }
 // m_fbo.Destroy();
@@ -281,6 +323,14 @@ void SuperAA::Init(int width, int height)
 // =========================
 void SuperAA::Draw()
 {
+    // ★ 初回初期化（リングバッファ）
+    static bool ringBufferInitialized = false;
+    if (!ringBufferInitialized && m_width > 0 && m_height > 0)
+    {
+        InitFrameRingBuffer(m_width, m_height);
+        ringBufferInitialized = true;
+    }
+
     // --- 1. ポストエフェクト（AA/CRT）の描画 ---
     if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
     {
@@ -294,20 +344,42 @@ void SuperAA::Draw()
             if (m_locTex1 >= 0)
                 glUniform1i(m_locTex1, 0);
 
+            
+            if (m_ringBufferIndex > 0)
+            {
+                
+                int oldFrameIndex = (m_ringBufferIndex - 1 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex]);
+                glUniform1i(m_locOldFrameTex, 1);
+
+                // mix有効フラグ
+                if (m_locMixEnabled >= 0)
+                {
+                    glUniform1i(m_locMixEnabled, 1);
+                }
+
+                glActiveTexture(GL_TEXTURE0);
+                             
+            }
+            else
+            {
+                // mix無効時
+                if (m_locMixEnabled >= 0)
+                {
+                    glUniform1i(m_locMixEnabled, 0);
+                }
+            }
+
             if (m_locScanlineEnable >= 0)
             {
                 glUniform1i(m_locScanlineEnable, m_scanlineEnable ? 1 : 0);
-                //static int debugCounter = 0;
-                //if ((debugCounter++ % 60) == 0)
-                //    printf("[DEBUG] scanlineEnable sent: %d (location: %d)\n", m_scanlineEnable ? 1 : 0, m_locScanlineEnable);
             }
 
             if (m_locScanlineStrength >= 0)
             {
                 glUniform1f(m_locScanlineStrength, m_scanlineStrength);
-                //static int debugCounter2 = 0;
-                //if ((debugCounter2++ % 60) == 0)
-                //    printf("[DEBUG] scanlineStrength sent: %.2f (location: %d)\n", m_scanlineStrength, m_locScanlineStrength);
             }
 
             // barrelEffect 関連を送信
@@ -365,6 +437,9 @@ void SuperAA::Draw()
     }
 
     glBindVertexArray(0);
+
+    // ★ 最後に古いフレームバッファを更新
+    UpdateFrameRingBuffer();
 }
 
 void SuperAA::ToggleScanline()
@@ -385,8 +460,8 @@ void SuperAA::IncreaseScanlineStrength()
     m_scanlineStrength += STEP;
     if (m_scanlineStrength > 1.0f)
         m_scanlineStrength = 1.0f;
-    printf("[SuperAA] Scanline Strength Increased: %.2f\n", m_scanlineStrength );  
-    SaveToINI();  
+    printf("[SuperAA] Scanline Strength Increased: %.2f\n", m_scanlineStrength);
+    SaveToINI();
 }
 
 void SuperAA::DecreaseScanlineStrength()
@@ -395,7 +470,7 @@ void SuperAA::DecreaseScanlineStrength()
     m_scanlineStrength -= STEP;
     if (m_scanlineStrength < 0.0f)
         m_scanlineStrength = 0.0f;
-    printf("[SuperAA] Scanline Strength Decreased: %.2f\n", m_scanlineStrength );
+    printf("[SuperAA] Scanline Strength Decreased: %.2f\n", m_scanlineStrength);
     SaveToINI();
 }
 
@@ -405,7 +480,7 @@ void SuperAA::IncreaseBarrelStrength()
     m_barrelStrength += STEP;
     if (m_barrelStrength > 0.100f)
         m_barrelStrength = 0.100f;
-    printf("[SuperAA] Barrel Strength Decrease: %.3f\n", m_barrelStrength ); 
+    printf("[SuperAA] Barrel Strength Decrease: %.3f\n", m_barrelStrength);
     SaveToINI();
 }
 
@@ -415,7 +490,7 @@ void SuperAA::DecreaseBarrelStrength()
     m_barrelStrength -= STEP;
     if (m_barrelStrength < 0.000f)
         m_barrelStrength = 0.000f;
-    printf("[SuperAA] Barrel Strength Increase: %.3f\n", m_barrelStrength );
+    printf("[SuperAA] Barrel Strength Increase: %.3f\n", m_barrelStrength);
     SaveToINI();
 }
 
@@ -429,21 +504,25 @@ void SuperAA::SaveToINI()
         printf("[SuperAA] ERROR: ini file path not set\n");
         return;
     }
- 
+
     // 現在の値を 0～100 の形式に変換
     // ScanlineStrength: 内部は (1 - value) なので逆算
     int scanlineValue = static_cast<int>(m_scanlineStrength * 100.0f);
-    if (scanlineValue < 0) scanlineValue = 0;
-    if (scanlineValue > 100) scanlineValue = 100;
- 
+    if (scanlineValue < 0)
+        scanlineValue = 0;
+    if (scanlineValue > 100)
+        scanlineValue = 100;
+
     // BarrelStrength: 内部は value / 100.0f なので 100を掛ける
     int barrelValue = static_cast<int>(m_barrelStrength * 1000.0f);
-    if (barrelValue < 0) barrelValue = 0;
-    if (barrelValue > 100) barrelValue = 100;
- 
-    printf("[SuperAA] Saving to ini: ScanlineStrength=%d, BarrelStrength=%d\n", 
+    if (barrelValue < 0)
+        barrelValue = 0;
+    if (barrelValue > 100)
+        barrelValue = 100;
+
+    printf("[SuperAA] Saving to ini: ScanlineStrength=%d, BarrelStrength=%d\n",
            scanlineValue, barrelValue);
- 
+
     // ini ファイルを読み込む
     std::ifstream infile(m_configFilePath);
     if (!infile.is_open())
@@ -451,10 +530,10 @@ void SuperAA::SaveToINI()
         printf("[SuperAA] ERROR: Cannot open ini file: %s\n", m_configFilePath.c_str());
         return;
     }
- 
+
     std::stringstream buffer;
     std::string line;
- 
+
     // ファイルの内容を処理
     while (std::getline(infile, line))
     {
@@ -474,7 +553,7 @@ void SuperAA::SaveToINI()
         }
     }
     infile.close();
- 
+
     // ファイルに書き込む
     std::ofstream outfile(m_configFilePath);
     if (!outfile.is_open())
@@ -482,13 +561,12 @@ void SuperAA::SaveToINI()
         printf("[SuperAA] ERROR: Cannot write to ini file: %s\n", m_configFilePath.c_str());
         return;
     }
- 
+
     outfile << buffer.str();
     outfile.close();
- 
+
     printf("[SuperAA] ini file updated successfully\n");
 }
- 
 
 GLuint SuperAA::GetTargetID()
 {
@@ -573,4 +651,68 @@ void SuperAA::LoadOverlayByTitle(const std::string &gameTitle)
     {
         printf("[SuperAA] Loaded overlay: %s\n", path.c_str());
     }
+}
+
+void SuperAA::InitFrameRingBuffer(int width, int height)
+{
+    printf("[SuperAA] InitFrameRingBuffer: %d x %d\n", width, height);
+
+    // 既存のテクスチャを削除
+    for (int i = 0; i < RING_BUFFER_SIZE; i++)
+    {
+        if (m_frameRingBuffer[i] != 0)
+        {
+            glDeleteTextures(1, &m_frameRingBuffer[i]);
+            m_frameRingBuffer[i] = 0;
+        }
+    }
+
+    // 新しいテクスチャを生成
+    for (int i = 0; i < RING_BUFFER_SIZE; i++)
+    {
+        glGenTextures(1, &m_frameRingBuffer[i]);
+        glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[i]);
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0,
+                     GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    m_ringBufferIndex = 0;
+
+    printf("[SuperAA] FrameRingBuffer initialized with %d textures\n", RING_BUFFER_SIZE);
+}
+void SuperAA::UpdateFrameRingBuffer()
+{
+     
+
+    if (m_ringBufferIndex < 0 || m_ringBufferIndex >= RING_BUFFER_SIZE)
+    {
+        printf("[EARLY RETURN] m_ringBufferIndex=%d, RING_BUFFER_SIZE=%d\n", m_ringBufferIndex, RING_BUFFER_SIZE);
+        return;
+    }
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo.GetFBOID());
+    glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[m_ringBufferIndex]);
+
+   
+
+    glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, m_width, m_height);
+
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR)
+    {
+        printf("[ERROR] glCopyTexSubImage2D failed: 0x%x\n", err);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+
+    m_ringBufferIndex = (m_ringBufferIndex + 1) % RING_BUFFER_SIZE;
 }
