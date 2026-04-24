@@ -75,6 +75,8 @@ CInputs::CInputs(std::shared_ptr<CInputSystem> system)
 	uiBarrelDecrease = AddSwitchInput("UIBarrelDecrease", "DecreaseBarrel", Game::INPUT_COMMON, "KEY_L");
 
 	uiMixEffect = AddSwitchInput("UIMixEffect", "MixEffect", Game::INPUT_COMMON, "KEY_D");
+	uiMixIncrease = AddSwitchInput("UIMixIncrease", "IncreaseMix", Game::INPUT_COMMON, "KEY_Z");
+	uiMixDecrease = AddSwitchInput("UIMixDecrease", "DecreaseMix", Game::INPUT_COMMON, "KEY_X");
 
 	uiOverlay = AddSwitchInput("UIOverlay", "Overlay", Game::INPUT_COMMON, "KEY_F");
 

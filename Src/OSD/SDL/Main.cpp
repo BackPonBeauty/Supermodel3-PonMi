@@ -1233,6 +1233,16 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       {
         superAA->ToggleMixEffect();
       }
+
+      else if (Inputs->uiMixIncrease->Pressed())
+      {
+        superAA->IncreaseMixStrength();
+      }
+      else if (Inputs->uiMixDecrease->Pressed())
+      {
+        superAA->DecreaseMixStrength();
+      }
+
       else if (Inputs->uiOverlay->Pressed())
       {
         superAA->ToggleOverlay();

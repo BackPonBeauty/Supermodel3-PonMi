@@ -25,10 +25,11 @@ public:
 	GLuint GetTargetID();
 	GLint m_locScanlineEnable = -1;
 	GLint m_locScanlineStrength = -1;
-	GLint m_locBarrelEffectEnable = -1; // ← 追加
-	GLint m_locBarrelStrength = -1;		// ← 追加
-	GLint m_locTex1 = -1;				// ← 追加
-	GLint m_locUAspect = -1;			// ← 追加
+	GLint m_locBarrelEffectEnable = -1; 
+	GLint m_locBarrelStrength = -1;		
+	GLint m_locMixStrength = -1;
+	GLint m_locTex1 = -1;				
+	GLint m_locUAspect = -1;			
 
 	// ===== Toggle Methods (on/off) =====
 	void ToggleScanline();
@@ -41,6 +42,9 @@ public:
 	void DecreaseScanlineStrength();
 	void IncreaseBarrelStrength();
 	void DecreaseBarrelStrength();
+	void IncreaseMixStrength();
+	void DecreaseMixStrength();
+
 
 	// ===== Getter Methods =====
 	float GetScanlineStrength() const;
@@ -67,6 +71,7 @@ private:
 	float m_scanlineStrength;
 	bool m_barrelEffectEnable;
 	float m_barrelStrength;
+	float m_MixStrength;
 	int m_totalXRes;
 	int m_totalYRes;
 	GLuint m_vao;

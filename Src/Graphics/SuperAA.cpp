@@ -24,6 +24,7 @@ SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStr
                                                                                                                                                                                                                               m_locOldFrameTex1(-1),
                                                                                                                                                                                                                               // m_locOldFrameTex2(-1),
                                                                                                                                                                                                                               // m_locOldFrameTex3(-1),
+                                                                                                                                                                                                                              m_MixStrength(0.8),
                                                                                                                                                                                                                               m_locMixEnabled(-1)
 
 {
@@ -105,7 +106,8 @@ uniform float uAspect;
 uniform sampler2D uOldFrameTex1;      
 //uniform sampler2D uOldFrameTex2;      
 //uniform sampler2D uOldFrameTex3;      
-uniform int uMixEnabled;             
+uniform int uMixEnabled; 
+uniform float mixStrength;            
 
 out vec4 fragColor;
 
@@ -207,7 +209,7 @@ void main()
     if (uMixEnabled != 0)
     {
         vec3 oldColor1 = texture(uOldFrameTex1, uv).rgb;  
-        color = mix(oldColor1, color, 0.8);
+        color = mix(oldColor1, color, mixStrength);
         //vec3 oldColor2 = texture(uOldFrameTex2, uv).rgb;  
         //color = mix(oldColor2, color, 0.1);
         //vec3 oldColor3 = texture(uOldFrameTex3, uv).rgb;  
@@ -258,6 +260,7 @@ void main()
         m_locBarrelStrength = m_shader.GetUniformLocation("barrelStrength");
         m_locOldFrameTex1 = m_shader.GetUniformLocation("uOldFrameTex1");
         m_locMixEnabled = m_shader.GetUniformLocation("uMixEnabled");
+        m_locMixStrength = m_shader.GetUniformLocation("mixStrength");
         m_locTex1 = m_shader.GetUniformLocation("tex1");
         m_locUAspect = m_shader.GetUniformLocation("uAspect");
         /*
@@ -375,6 +378,10 @@ void SuperAA::Draw()
             // barrelStrength を送信（動的な値を反映）
             if (m_locBarrelStrength >= 0)
                 glUniform1f(m_locBarrelStrength, m_barrelStrength);
+            
+            if (m_locMixStrength >= 0)
+                glUniform1f(m_locMixStrength, m_MixStrength);
+            
 
             if (m_mixEnabled)
             {
@@ -507,6 +514,25 @@ void SuperAA::DecreaseBarrelStrength()
     printf("[SuperAA] Barrel Strength Increase: %.3f\n", m_barrelStrength);
     SaveToINI();
 }
+
+void SuperAA::IncreaseMixStrength()
+{
+    const float STEP = 0.1f; // 0.1%ずつ変更
+    m_MixStrength += STEP;
+    if (m_MixStrength > 1.0f)
+        m_MixStrength = 1.0f;
+    printf("[SuperAA] Mix Strength Decrease: %.3f\n", m_MixStrength);
+}
+
+void SuperAA::DecreaseMixStrength()
+{
+    const float STEP = 0.1f;
+    m_MixStrength -= STEP;
+    if (m_MixStrength < 0.0f)
+        m_MixStrength = 0.0f;
+    printf("[SuperAA] Mix Strength Increase: %.3f\n", m_MixStrength);
+}
+
 
 // ============================================================================
 // ★ 新規追加：ini ファイル即座保存関数
