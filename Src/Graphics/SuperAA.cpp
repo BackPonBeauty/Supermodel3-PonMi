@@ -21,7 +21,9 @@ SuperAA::SuperAA(int aaValue, CRTcolor CRTcolors, bool scanLine, int scanlineStr
                                                                                                                                                                                                                               m_ringBufferIndex(0),
                                                                                                                                                                                                                               m_frameCounter(0),
                                                                                                                                                                                                                               m_mixEnabled(false),
-                                                                                                                                                                                                                              m_locOldFrameTex(-1),
+                                                                                                                                                                                                                              m_locOldFrameTex1(-1),
+                                                                                                                                                                                                                              // m_locOldFrameTex2(-1),
+                                                                                                                                                                                                                              // m_locOldFrameTex3(-1),
                                                                                                                                                                                                                               m_locMixEnabled(-1)
 
 {
@@ -100,8 +102,10 @@ uniform float barrelStrength;
 uniform int barrelEffectEnable;
 uniform int scanlineEnable;
 uniform float uAspect;
-uniform sampler2D uOldFrameTex;      // ★ 追加
-uniform int uMixEnabled;             // ★ 追加
+uniform sampler2D uOldFrameTex1;      
+//uniform sampler2D uOldFrameTex2;      
+//uniform sampler2D uOldFrameTex3;      
+uniform int uMixEnabled;             
 
 out vec4 fragColor;
 
@@ -202,8 +206,12 @@ void main()
     // ★ フレーム遅延 mix
     if (uMixEnabled != 0)
     {
-        vec3 oldColor = texture(uOldFrameTex, uv).rgb;  // ★ uOldFrameTex を実際に使う
-        color = mix(oldColor, color, 0.7);
+        vec3 oldColor1 = texture(uOldFrameTex1, uv).rgb;  
+        color = mix(oldColor1, color, 0.5);
+        //vec3 oldColor2 = texture(uOldFrameTex2, uv).rgb;  
+        //color = mix(oldColor2, color, 0.1);
+        //vec3 oldColor3 = texture(uOldFrameTex3, uv).rgb;  
+        //color = mix(oldColor3, color, 0.1);
     }
 
 	
@@ -248,16 +256,22 @@ void main()
         m_locScanlineStrength = m_shader.GetUniformLocation("scanlineStrength");
         m_locBarrelEffectEnable = m_shader.GetUniformLocation("barrelEffectEnable");
         m_locBarrelStrength = m_shader.GetUniformLocation("barrelStrength");
+        m_locOldFrameTex1 = m_shader.GetUniformLocation("uOldFrameTex1");
+        m_locMixEnabled = m_shader.GetUniformLocation("uMixEnabled");
         m_locTex1 = m_shader.GetUniformLocation("tex1");
         m_locUAspect = m_shader.GetUniformLocation("uAspect");
-        
+/*
         if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
         {
-            m_locOldFrameTex = m_shader.GetUniformLocation("uOldFrameTex");
-            m_locMixEnabled = m_shader.GetUniformLocation("uMixEnabled");
+            
+            // m_locOldFrameTex2 = m_shader.GetUniformLocation("uOldFrameTex2");
+            // m_locOldFrameTex3 = m_shader.GetUniformLocation("uOldFrameTex3");
+            
 
             printf("[SuperAA] Frame Delay Interpolation:\n");
-            printf("  uOldFrameTex: %d\n", m_locOldFrameTex);
+            printf("  uOldFrameTex1: %d\n", m_locOldFrameTex1);
+            // printf("  uOldFrameTex2: %d\n", m_locOldFrameTex2);
+            // printf("  uOldFrameTex3: %d\n", m_locOldFrameTex3);
             printf("  uMixEnabled: %d\n", m_locMixEnabled);
         }
 
@@ -267,7 +281,7 @@ void main()
         printf("  barrelStrength: %d\n", m_locBarrelStrength);
         printf("  barrelEffectEnable: %d\n", m_locBarrelEffectEnable);
         printf("  scanlineEnable: %d\n", m_locScanlineEnable);
-        printf("  uAspect: %d\n", m_locUAspect);
+        printf("  uAspect: %d\n", m_locUAspect);*/
         m_overlayShader.LoadShaders(vertexShader, overlayFS);
         m_overlayShader.GetUniformLocationMap("uOverlayTex");
 
@@ -312,7 +326,6 @@ void SuperAA::Init(int width, int height)
         m_width = width;
         m_height = height;
 
-      
         InitFrameRingBuffer(width, height);
     }
 }
@@ -344,34 +357,6 @@ void SuperAA::Draw()
             if (m_locTex1 >= 0)
                 glUniform1i(m_locTex1, 0);
 
-            
-            if (m_ringBufferIndex > 0)
-            {
-                
-                int oldFrameIndex = (m_ringBufferIndex - 1 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
-
-                glActiveTexture(GL_TEXTURE1);
-                glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex]);
-                glUniform1i(m_locOldFrameTex, 1);
-
-                // mix有効フラグ
-                if (m_locMixEnabled >= 0)
-                {
-                    glUniform1i(m_locMixEnabled, 1);
-                }
-
-                glActiveTexture(GL_TEXTURE0);
-                             
-            }
-            else
-            {
-                // mix無効時
-                if (m_locMixEnabled >= 0)
-                {
-                    glUniform1i(m_locMixEnabled, 0);
-                }
-            }
-
             if (m_locScanlineEnable >= 0)
             {
                 glUniform1i(m_locScanlineEnable, m_scanlineEnable ? 1 : 0);
@@ -390,6 +375,49 @@ void SuperAA::Draw()
             if (m_locBarrelStrength >= 0)
                 glUniform1f(m_locBarrelStrength, m_barrelStrength);
 
+            
+
+            if (m_mixEnabled)
+            {
+                if (m_ringBufferIndex > 0)
+                {
+
+                    // 1フレーム前
+                    int oldFrameIndex1 = (m_ringBufferIndex - 1 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+                    // 2フレーム前
+                    // int oldFrameIndex2 = (m_ringBufferIndex - 2 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+                    // 3フレーム前
+                    // int oldFrameIndex3 = (m_ringBufferIndex - 3 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+
+                    glActiveTexture(GL_TEXTURE1);
+                    glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex1]);
+                    glUniform1i(m_locOldFrameTex1, 1);
+
+                    // glActiveTexture(GL_TEXTURE2);
+                    // glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex2]);
+                    // glUniform1i(m_locOldFrameTex2, 2);
+
+                    // glActiveTexture(GL_TEXTURE3);
+                    // glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex3]);
+                    // glUniform1i(m_locOldFrameTex3, 3);
+
+                    // mix有効フラグ
+                    if (m_locMixEnabled >= 0)
+                    {
+                        glUniform1i(m_locMixEnabled, 1);
+                    }
+
+                    glActiveTexture(GL_TEXTURE0);
+                }
+                else
+                {
+                    // mix無効時
+                    if (m_locMixEnabled >= 0)
+                    {
+                        glUniform1i(m_locMixEnabled, 0);
+                    }
+                }
+            }
             // uAspect も送信
             if (m_locUAspect >= 0)
                 glUniform1f(m_locUAspect, (float)m_width / (float)m_height);
@@ -402,14 +430,14 @@ void SuperAA::Draw()
         }
     }
 
-    // --- 2. オーバーレイの描画 ---
+   
     if (m_overlayTex != 0 && m_wideScreen && m_overlay)
     {
-        // 現在のViewport（ゲーム画面用の4:3など）を一時保存
+
         GLint last_viewport[4];
         glGetIntegerv(GL_VIEWPORT, last_viewport);
 
-        // オーバーレイ描画のために全画面（16:9）へ一時変更
+  
         glViewport(0, 0, m_totalXRes, m_totalYRes);
 
         glEnable(GL_BLEND);
@@ -431,8 +459,6 @@ void SuperAA::Draw()
         m_overlayShader.DisableShader();
         glDisable(GL_BLEND);
 
-        // 保存しておいた元のViewport（4:3等）に戻す
-        // これをしないと、次のフレームのゲーム描画が引き伸ばされます。
         glViewport(last_viewport[0], last_viewport[1], last_viewport[2], last_viewport[3]);
     }
 
@@ -452,6 +478,16 @@ void SuperAA::ToggleBarrelEffect()
 {
     m_barrelEffectEnable = !m_barrelEffectEnable;
     printf("[SuperAA] Barrel Effect %s\n", m_barrelEffectEnable ? "ON" : "OFF");
+}
+void SuperAA::ToggleMixEffect()
+{
+    m_mixEnabled = !m_mixEnabled;
+    printf("[SuperAA] Mix Effect %s\n", m_mixEnabled ? "ON" : "OFF");
+}
+void SuperAA::ToggleOverlay()
+{
+    m_overlay = !m_overlay;
+    printf("[SuperAA] Overlay %s\n", m_overlay ? "ON" : "OFF");
 }
 
 void SuperAA::IncreaseScanlineStrength()
@@ -690,7 +726,6 @@ void SuperAA::InitFrameRingBuffer(int width, int height)
 }
 void SuperAA::UpdateFrameRingBuffer()
 {
-     
 
     if (m_ringBufferIndex < 0 || m_ringBufferIndex >= RING_BUFFER_SIZE)
     {
@@ -700,8 +735,6 @@ void SuperAA::UpdateFrameRingBuffer()
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo.GetFBOID());
     glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[m_ringBufferIndex]);
-
-   
 
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, m_width, m_height);
 

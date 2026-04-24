@@ -94,6 +94,9 @@ public:
   std::shared_ptr<CSwitchInput> uiBarrelIncrease;
   std::shared_ptr<CSwitchInput> uiBarrelDecrease;
 
+  std::shared_ptr<CSwitchInput> uiMixEffect;
+  std::shared_ptr<CSwitchInput> uiOverlay;
+
   std::shared_ptr<CSwitchInput> uiExit;
   std::shared_ptr<CSwitchInput> uiReset;
   std::shared_ptr<CSwitchInput> uiPause;

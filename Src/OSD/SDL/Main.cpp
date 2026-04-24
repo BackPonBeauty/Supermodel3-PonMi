@@ -1229,6 +1229,14 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       {
         superAA->DecreaseBarrelStrength();
       }
+      else if (Inputs->uiMixEffect->Pressed())
+      {
+        superAA->ToggleMixEffect();
+      }
+      else if (Inputs->uiOverlay->Pressed())
+      {
+        superAA->ToggleOverlay();
+      }
       else if (Inputs->uiReset->Pressed())
       {
         if (!paused)

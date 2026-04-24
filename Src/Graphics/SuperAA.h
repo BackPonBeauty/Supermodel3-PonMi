@@ -33,6 +33,8 @@ public:
 	// ===== Toggle Methods (on/off) =====
 	void ToggleScanline();
 	void ToggleBarrelEffect();
+	void ToggleMixEffect();
+	void ToggleOverlay();
 
 	// ===== Strength Adjustment Methods =====
 	void IncreaseScanlineStrength();
@@ -78,12 +80,14 @@ private:
 	// フレーム遅延リングバッファ
 	static const int RING_BUFFER_SIZE = 2;
 	
-	GLuint m_frameRingBuffer[RING_BUFFER_SIZE]; // 57個のテクスチャ
+	GLuint m_frameRingBuffer[RING_BUFFER_SIZE]; // 2個のテクスチャ
 	int m_ringBufferIndex;						// 現在の書き込みインデックス
 
 	int m_frameCounter;		// フレームカウンタ
 	bool m_mixEnabled;		// mix有効フラグ
-	GLint m_locOldFrameTex; // uOldFrameTex の location
+	GLint m_locOldFrameTex1; // uOldFrameTex の location
+	//GLint m_locOldFrameTex2;
+	//GLint m_locOldFrameTex3;
 	GLint m_locMixEnabled;	// uMixEnabled の location
     
 };
