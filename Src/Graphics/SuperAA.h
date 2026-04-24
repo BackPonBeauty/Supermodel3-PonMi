@@ -78,7 +78,7 @@ private:
 	std::string m_configFilePath;
 	void SaveToINI();
 	// フレーム遅延リングバッファ
-	static const int RING_BUFFER_SIZE = 2;
+	static const int RING_BUFFER_SIZE = 10;
 	
 	GLuint m_frameRingBuffer[RING_BUFFER_SIZE]; // 2個のテクスチャ
 	int m_ringBufferIndex;						// 現在の書き込みインデックス

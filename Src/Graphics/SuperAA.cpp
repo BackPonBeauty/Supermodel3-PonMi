@@ -207,7 +207,7 @@ void main()
     if (uMixEnabled != 0)
     {
         vec3 oldColor1 = texture(uOldFrameTex1, uv).rgb;  
-        color = mix(oldColor1, color, 0.5);
+        color = mix(oldColor1, color, 0.8);
         //vec3 oldColor2 = texture(uOldFrameTex2, uv).rgb;  
         //color = mix(oldColor2, color, 0.1);
         //vec3 oldColor3 = texture(uOldFrameTex3, uv).rgb;  
@@ -260,28 +260,28 @@ void main()
         m_locMixEnabled = m_shader.GetUniformLocation("uMixEnabled");
         m_locTex1 = m_shader.GetUniformLocation("tex1");
         m_locUAspect = m_shader.GetUniformLocation("uAspect");
-/*
-        if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
-        {
-            
-            // m_locOldFrameTex2 = m_shader.GetUniformLocation("uOldFrameTex2");
-            // m_locOldFrameTex3 = m_shader.GetUniformLocation("uOldFrameTex3");
-            
+        /*
+                if ((m_aa > 1) || (m_crtcolors != CRTcolor::None))
+                {
 
-            printf("[SuperAA] Frame Delay Interpolation:\n");
-            printf("  uOldFrameTex1: %d\n", m_locOldFrameTex1);
-            // printf("  uOldFrameTex2: %d\n", m_locOldFrameTex2);
-            // printf("  uOldFrameTex3: %d\n", m_locOldFrameTex3);
-            printf("  uMixEnabled: %d\n", m_locMixEnabled);
-        }
+                    // m_locOldFrameTex2 = m_shader.GetUniformLocation("uOldFrameTex2");
+                    // m_locOldFrameTex3 = m_shader.GetUniformLocation("uOldFrameTex3");
 
-        printf("[SuperAA] Uniform locations:\n");
-        printf("  tex1: %d\n", m_locTex1);
-        printf("  scanlineStrength: %d\n", m_locScanlineStrength);
-        printf("  barrelStrength: %d\n", m_locBarrelStrength);
-        printf("  barrelEffectEnable: %d\n", m_locBarrelEffectEnable);
-        printf("  scanlineEnable: %d\n", m_locScanlineEnable);
-        printf("  uAspect: %d\n", m_locUAspect);*/
+
+                    printf("[SuperAA] Frame Delay Interpolation:\n");
+                    printf("  uOldFrameTex1: %d\n", m_locOldFrameTex1);
+                    // printf("  uOldFrameTex2: %d\n", m_locOldFrameTex2);
+                    // printf("  uOldFrameTex3: %d\n", m_locOldFrameTex3);
+                    printf("  uMixEnabled: %d\n", m_locMixEnabled);
+                }
+
+                printf("[SuperAA] Uniform locations:\n");
+                printf("  tex1: %d\n", m_locTex1);
+                printf("  scanlineStrength: %d\n", m_locScanlineStrength);
+                printf("  barrelStrength: %d\n", m_locBarrelStrength);
+                printf("  barrelEffectEnable: %d\n", m_locBarrelEffectEnable);
+                printf("  scanlineEnable: %d\n", m_locScanlineEnable);
+                printf("  uAspect: %d\n", m_locUAspect);*/
         m_overlayShader.LoadShaders(vertexShader, overlayFS);
         m_overlayShader.GetUniformLocationMap("uOverlayTex");
 
@@ -326,7 +326,7 @@ void SuperAA::Init(int width, int height)
         m_width = width;
         m_height = height;
 
-        InitFrameRingBuffer(width, height);
+        // InitFrameRingBuffer(width, height);
     }
 }
 // m_fbo.Destroy();
@@ -336,6 +336,7 @@ void SuperAA::Init(int width, int height)
 // =========================
 void SuperAA::Draw()
 {
+
     // ★ 初回初期化（リングバッファ）
     static bool ringBufferInitialized = false;
     if (!ringBufferInitialized && m_width > 0 && m_height > 0)
@@ -375,49 +376,28 @@ void SuperAA::Draw()
             if (m_locBarrelStrength >= 0)
                 glUniform1f(m_locBarrelStrength, m_barrelStrength);
 
-            
-
             if (m_mixEnabled)
             {
-                if (m_ringBufferIndex > 0)
-                {
 
-                    // 1フレーム前
-                    int oldFrameIndex1 = (m_ringBufferIndex - 1 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
-                    // 2フレーム前
-                    // int oldFrameIndex2 = (m_ringBufferIndex - 2 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
-                    // 3フレーム前
-                    // int oldFrameIndex3 = (m_ringBufferIndex - 3 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+                // 1フレーム前
+                int oldFrameIndex1 = (m_ringBufferIndex - 1 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+                // 2フレーム前
+                // int oldFrameIndex2 = (m_ringBufferIndex - 2 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
+                // 3フレーム前
+                // int oldFrameIndex3 = (m_ringBufferIndex - 3 + RING_BUFFER_SIZE) % RING_BUFFER_SIZE;
 
-                    glActiveTexture(GL_TEXTURE1);
-                    glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex1]);
-                    glUniform1i(m_locOldFrameTex1, 1);
+                glActiveTexture(GL_TEXTURE1);
+                glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex1]);
+                glUniform1i(m_locOldFrameTex1, 1);
+                glActiveTexture(GL_TEXTURE0);
 
-                    // glActiveTexture(GL_TEXTURE2);
-                    // glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex2]);
-                    // glUniform1i(m_locOldFrameTex2, 2);
-
-                    // glActiveTexture(GL_TEXTURE3);
-                    // glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[oldFrameIndex3]);
-                    // glUniform1i(m_locOldFrameTex3, 3);
-
-                    // mix有効フラグ
-                    if (m_locMixEnabled >= 0)
-                    {
-                        glUniform1i(m_locMixEnabled, 1);
-                    }
-
-                    glActiveTexture(GL_TEXTURE0);
-                }
-                else
-                {
-                    // mix無効時
-                    if (m_locMixEnabled >= 0)
-                    {
-                        glUniform1i(m_locMixEnabled, 0);
-                    }
-                }
+                glUniform1i(m_locMixEnabled, 1);
             }
+            else
+            {
+                glUniform1i(m_locMixEnabled, 0);
+            }
+
             // uAspect も送信
             if (m_locUAspect >= 0)
                 glUniform1f(m_locUAspect, (float)m_width / (float)m_height);
@@ -430,14 +410,12 @@ void SuperAA::Draw()
         }
     }
 
-   
     if (m_overlayTex != 0 && m_wideScreen && m_overlay)
     {
 
         GLint last_viewport[4];
         glGetIntegerv(GL_VIEWPORT, last_viewport);
 
-  
         glViewport(0, 0, m_totalXRes, m_totalYRes);
 
         glEnable(GL_BLEND);
@@ -733,9 +711,12 @@ void SuperAA::UpdateFrameRingBuffer()
         return;
     }
 
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0); // ★ 一度リセット
     glBindFramebuffer(GL_READ_FRAMEBUFFER, m_fbo.GetFBOID());
-    glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[m_ringBufferIndex]);
 
+    glReadBuffer(GL_COLOR_ATTACHMENT0); // ★ 読み込み対象を明示的に指定
+
+    glBindTexture(GL_TEXTURE_2D, m_frameRingBuffer[m_ringBufferIndex]);
     glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 0, 0, m_width, m_height);
 
     GLenum err = glGetError();
