@@ -53,6 +53,9 @@ static int previewPosX = 0;
 static int previewPosY = 0;
 static char bufPosX[16] = "0";
 static char bufPosY[16] = "0";
+static char bufPortIn[64] = "";
+static char bufPortOut[64] = "";
+static char bufAddressOut[256] = "";
 static bool scrollToSelected = true;
 
 // ★画像管理用のグローバル変数
@@ -286,8 +289,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
          int &musicVol, int &sfxVol, int &balance, bool &vEmulateSound,
          bool &vEmulateDSB, bool &vFlipStereo, bool &vLegacySoundDSP,
          int &selectedInputType, int &selectedCrosshair, int &selectedStyle,
-         bool &vForceFeedback, bool &vNetwork, bool &vSimulateNet,
-         char *bufPortIn, char *bufPortOut, char *bufAddressOut)
+         bool &vForceFeedback, bool &vNetwork, bool &vSimulateNet)
 {
     // 基本スケールの計算
     float scale = io.DisplaySize.y / 600.0f;
@@ -1764,11 +1766,13 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
     bool vNetwork = config["Network"].ValueAs<bool>();
     bool vSimulateNet = config["SimulateNet"].ValueAs<bool>();
 
-    // Network 文字列（char配列へコピー）
-    char bufPortIn[16], bufPortOut[16], bufAddressOut[128];
-    strncpy(bufPortIn, config["PortIn"].ValueAs<std::string>().c_str(), sizeof(bufPortIn));
-    strncpy(bufPortOut, config["PortOut"].ValueAs<std::string>().c_str(), sizeof(bufPortOut));
-    strncpy(bufAddressOut, config["AddressOut"].ValueAs<std::string>().c_str(), sizeof(bufAddressOut));
+    // Network 文字列（グローバル変数 bufPortIn, bufPortOut, bufAddressOut に初期化）
+    strncpy(bufPortIn, config["PortIn"].ValueAs<std::string>().c_str(), sizeof(bufPortIn) - 1);
+    bufPortIn[sizeof(bufPortIn) - 1] = '\0';
+    strncpy(bufPortOut, config["PortOut"].ValueAs<std::string>().c_str(), sizeof(bufPortOut) - 1);
+    bufPortOut[sizeof(bufPortOut) - 1] = '\0';
+    strncpy(bufAddressOut, config["AddressOut"].ValueAs<std::string>().c_str(), sizeof(bufAddressOut) - 1);
+    bufAddressOut[sizeof(bufAddressOut) - 1] = '\0';
     s_Dir = config["Dir"].ValueAs<std::string>();
 
     struct GuiSettings
@@ -1783,7 +1787,6 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
         bool vEmulateSound, vEmulateDSB, vFlipStereo, vLegacySoundDSP;
         int selectedInputType, selectedCrosshair, selectedStyle;
         bool vForceFeedback, vNetwork, vSimulateNet;
-        char bufPortIn[16], bufPortOut[16], bufAddressOut[128];
         int selectedResIndex;
     };
 
@@ -1937,7 +1940,7 @@ std::vector<std::string> RunGUI(const std::string &configPath, Util::Config::Nod
             vNoWhiteFlash, vHideCMD, vDefaultScanline, vTrueHz, superSampling, selectedCRT, selectedUpscale, ppcFreq, WindowXPosition, WindowYPosition, Scanline, Barrel,
             musicVol, sfxVol, balance, vEmulateSound, vEmulateDSB, vFlipStereo,
             vLegacySoundDSP, selectedInputType, selectedCrosshair, selectedStyle,
-            vForceFeedback, vNetwork, vSimulateNet, bufPortIn, bufPortOut, bufAddressOut);
+            vForceFeedback, vNetwork, vSimulateNet);
         if (exit)
         {
             running = false;
