@@ -1,7 +1,7 @@
 /**
  ** Supermodel
  ** A Sega Model 3 Arcade Emulator.
- ** Copyright 2003-2025 The Supermodel Team
+ ** Copyright 2003-2022 The Supermodel Team
  **
  ** This file is part of Supermodel.
  **
@@ -109,7 +109,7 @@ static const char s_defaultConfigFileContents[] =
         "WindowXPosition = 500\n"
         "WindowYPosition = 500\n"
         "BorderlessWindow = false\n"
-        "Crosshairs = -1\n"
+        "Crosshairs = 0\n"
         "GPUMultiThreaded = true\n"
         "MultiThreaded =True\n"
         "MultiTexture =True\n"
