@@ -1754,15 +1754,7 @@ Util::Config::Node DefaultConfig()
   config.Set("SDLFrictionMax", 100, "ForceFeedback", 0, 100);
   config.Set("SDLVibrateMax", 100, "ForceFeedback", 0, 100);
   config.Set("SDLConstForceThreshold", 30, "ForceFeedback", 0, 100);
-#ifdef NET_BOARD
 
-  // NetBoard
-  config.Set("Network", false, "Network");
-  config.Set("SimulateNet", true, "Network");
-  config.Set("PortIn", unsigned(1970), "Network");
-  config.Set("PortOut", unsigned(1971), "Network");
-  config.Set<std::string>("AddressOut", "127.0.0.1", "Network", "", "");
-#endif
 #else
   config.Set<std::string>("InputSystem", "sdl", "Core", "", "", {"sdl", "sdlgamepad"});
   // SDL ForceFeedback
@@ -1772,7 +1764,22 @@ Util::Config::Node DefaultConfig()
   config.Set("SDLVibrateMax", 100, "ForceFeedback", 0, 100);
   config.Set("SDLConstForceThreshold", 30, "ForceFeedback", 0, 100);
 #endif
-  config.Set<std::string>("Outputs", "none", "Misc", "", "", {"none", "win"});
+    // NetBoard
+  config.Set("Network", false, "Network");
+  config.Set("SimulateNet", true, "Network");
+  config.Set("PortIn", unsigned(1970), "Network");
+  config.Set("PortOut", unsigned(1971), "Network");
+  config.Set<std::string>("AddressOut", "127.0.0.1", "Network", "", "");
+
+#ifdef SUPERMODEL_WIN32
+  config.Set<std::string>("Outputs", "none", "Misc", "", "", { "none","win","net" });
+#else
+  config.Set<std::string>("Outputs", "none", "Misc", "", "", { "none","net" });
+#endif
+  config.Set<bool>("OutputsWithLF", false, "Misc");
+  config.Set<unsigned int>("OutputsTCPPort", 8000, "Misc", 1024, 65535);
+  config.Set<unsigned int>("OutputsUDPBroadcastPort", 8001, "Misc", 1024, 65535);
+
   config.Set("DumpMemory", false, "Misc");
   config.Set("DumpTextures", false, "Misc");
 
