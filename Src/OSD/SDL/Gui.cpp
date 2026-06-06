@@ -335,7 +335,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
 
     // ウィンドウ全体の基本スケール
     ImGui::SetWindowFontScale(scale);
-    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2 (2026-06-01)");
+    ImGui::TextColored(ImVec4(0.0f, 0.8f, 1.0f, 1.0f), "SEGA MODEL3 UI v2");
     ImGui::Separator();
     // float headerBottomY = ImGui::GetCursorPosY();
 
@@ -1391,7 +1391,7 @@ void GUI(ImGuiIO &io, Util::Config::Node &config,
                     ImGui::Text(title);
 
                     // --- 2. バージョンをセンター揃え ---
-                    const char *ver = "ver. 2026.06.01";
+                    const char *ver = "ver. 2026.06.06";
                     float verWidth = ImGui::CalcTextSize(ver).x;
                     ImGui::SetCursorPosX((windowWidth - verWidth) * 0.5f);
                     ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), ver);

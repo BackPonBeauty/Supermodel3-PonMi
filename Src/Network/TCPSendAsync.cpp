@@ -65,46 +65,35 @@ TCPSendAsync::~TCPSendAsync()
 
 	SDLNet_Quit(); // unload lib (winsock dll for windows)
 }
+
 bool TCPSendAsync::Send(const void *data, int length)
 {
+	// If we failed bail out
 	if (!Connected())
 	{
 		DPRINTF("Not connected\n");
 		return false;
 	}
 
+	DPRINTF("Sending %i bytes\n", length);
+
 	if (!length)
-		return true;
-
-	// --- 圧縮処理の追加 ---
-	static unsigned char compressed_payload[4096];
-	int final_length = length;
-	const void *data_to_queue = data;
-
-	// 3072バイトの場合のみ圧縮
-	if (length == 3072)
 	{
-		// ※TCPSend.cppで定義した compress_packet を呼び出せるようにするか、
-		// 同様のロジックをここに配置してください。
-		int c_len = compress_packet((unsigned char *)data, length, compressed_payload);
-		if (c_len > 0)
-		{
-			data_to_queue = compressed_payload;
-			final_length = c_len;
-		}
+		return true; // 0 sized packet will blow our connex
 	}
 
-	// キューに入れるバッファを確保（サイズ用4バイト + データ本体）
-	auto dataBuffer = std::unique_ptr<char[]>(new char[final_length + 4]);
+	auto dataBuffer = std::unique_ptr<char[]>(new char[length + 4]);
 
-	*((int32_t *)dataBuffer.get()) = final_length;			   // 圧縮後のサイズをセット
-	memcpy(dataBuffer.get() + 4, data_to_queue, final_length); // データをコピー
+	*((int32_t *)dataBuffer.get()) = length;	// set start of buffer to length
+	memcpy(dataBuffer.get() + 4, data, length); // copy the rest of the data
 
+	// lock our array and signal to other thread data is ready
 	{
 		std::unique_lock<std::mutex> lock(m_mutex);
 		m_dataBuffers.emplace_back(std::move(dataBuffer));
-		m_hasData = true;
-		m_cv.notify_one();
+
+		m_hasData = true;  // must set data ready in case of spurious wake up
+		m_cv.notify_one(); // tell locked thread it can wake up
 	}
 
 	return true;
@@ -184,7 +173,7 @@ bool TCPSendAsync::Connect()
 		{
 			int sock = (int)(intptr_t)SDLNet_TCP_GetSocket(m_socket);
 			int one = 1;
-#ifdef _WIN32
+#ifdef_WIN32
 			setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (const char *)&one, sizeof(one));
 #else
 			setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
