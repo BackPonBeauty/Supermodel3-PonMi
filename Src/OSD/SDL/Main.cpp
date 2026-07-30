@@ -78,6 +78,7 @@
 #include "DirectInputSystem.h"
 #include "WinOutputs.h"
 #endif
+#include "NetOutputs.h"
 
 #include "Supermodel.h"
 #include "Util/Format.h"
@@ -88,7 +89,9 @@
 #include "SDLInputSystem.h"
 #include "SDLIncludes.h"
 #include "Debugger/SupermodelDebugger.h"
+#ifndef SUPERMODEL_OSX
 #include "Graphics/Legacy3D/Legacy3D.h"
+#endif
 #include "Graphics/New3D/New3D.h"
 #include "Model3/IEmulator.h"
 #include "Model3/Model3.h"
@@ -797,7 +800,7 @@ static void TestPolygonHeaderBits(IEmulator *Emu)
  Different subsystems output their own blocks.
 ******************************************************************************/
 
-static const int STATE_FILE_VERSION = 5; // save state file version
+static const int STATE_FILE_VERSION = 6; // save state file version
 static const int NVRAM_FILE_VERSION = 0; // NVRAM file version
 static unsigned s_saveSlot = 0;          // save state slot #
 
@@ -1162,7 +1165,9 @@ int Supermodel(const Game &game, ROMSet *rom_set, IEmulator *Model3, CInputs *In
       replayStarted = true;
     }
 
-    Inputs->Poll(&game, xOffset, yOffset, xRes, yRes);
+    // Poll the inputs (returns false if ESC/close was requested from OS level)
+    if (!Inputs->Poll(&game, xOffset, yOffset, xRes, yRes))
+      quit = true;
     // Render if paused, otherwise run a frame
     if (paused)
       Model3->RenderFrame();
@@ -2073,14 +2078,12 @@ static void Help(void)
   puts("  -new-scsp               New SCSP engine based on MAME [Default]");
   puts("  -legacy-scsp            Legacy SCSP engine by ElSemi");
   puts("");
-#ifdef NET_BOARD
   puts("Net Options:");
   puts("  -no-net                 Disable net board [Default]");
   puts("  -net                    Enable net board");
   puts("  -simulate-netboard      Simulate the net board [Default]");
   puts("  -emulate-netboard       Emulate the net board (requires -no-threads)");
   puts("");
-#endif
   puts("Input Options:");
   puts("  -force-feedback         Enable force feedback (DirectInput, XInput)");
   puts("  -config-inputs          Configure keyboards, mice, and game controllers");
@@ -2190,12 +2193,10 @@ static ParsedCommandLine ParseCommandLine(int argc, char **argv)
       {"-new-scsp", {"LegacySoundDSP", false}},
       {"-no-white-flash", {"NoWhiteFlash", true}},
       {"-white-flash", {"NoWhiteFlash", false}},
-#ifdef NET_BOARD
       {"-net", {"Network", true}},
       {"-no-net", {"Network", false}},
       {"-simulate-netboard", {"SimulateNet", true}},
       {"-emulate-netboard", {"SimulateNet", false}},
-#endif
       {"-no-force-feedback", {"ForceFeedback", false}},
       {"-force-feedback", {"ForceFeedback", true}},
       {"-dump-memory", {"DumpMemory", true}},
@@ -2585,6 +2586,8 @@ int main(int argc, char **argv)
   }
   if (cmd_line.print_gl_info)
   {
+    // Use command line options so we can select the 3D engine for which to print GL info
+    Util::Config::MergeINISections(&s_runtime_config, DefaultConfig(), cmd_line.config);
     // We must exit after this because CreateGLScreen() is used
     PrintGLInfo(true, false, false);
     return 0;
@@ -2740,13 +2743,23 @@ int main(int argc, char **argv)
     goto Exit;
 
   // Create outputs
-#ifdef SUPERMODEL_WIN32
   {
     std::string outputs = s_runtime_config["Outputs"].ValueAs<std::string>();
     if (outputs == "none")
       Outputs = NULL;
+    else if (outputs == "net")
+    {
+      CNetOutputs* netOutputs = new CNetOutputs();
+      if (s_runtime_config["OutputsWithLF"].ValueAs<bool>())
+        netOutputs->SetFrameEnding(std::string("\r\n"));
+      netOutputs->SetTcpPort(s_runtime_config["OutputsTCPPort"].ValueAs<unsigned int>());
+      netOutputs->SetUdpBroadcastPort(s_runtime_config["OutputsUDPBroadcastPort"].ValueAs<unsigned int>());
+      Outputs = (COutputs*)netOutputs;
+    }
+#ifdef SUPERMODEL_WIN32
     else if (outputs == "win")
       Outputs = new CWinOutputs();
+#endif // SUPERMODEL_WIN32
     else
     {
       ErrorLog("Unknown outputs: %s\n", outputs.c_str());
@@ -2754,7 +2767,6 @@ int main(int argc, char **argv)
       goto Exit;
     }
   }
-#endif // SUPERMODEL_WIN32
 
   // Initialize outputs
   if (Outputs != NULL && !Outputs->Initialize())

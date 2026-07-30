@@ -97,7 +97,6 @@ else
 endif
 SDL2_LIBS += -lSDL2_net -liphlpapi
 
-
 #
 # MinGW/Windows-specific
 #
